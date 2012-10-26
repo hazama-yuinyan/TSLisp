@@ -1,0 +1,10 @@
+#console{
+	background-color: purple;
+	color: white;
+	font-size: large;
+	font-family: serif;
+}
+
+.cursor{
+	font-weight: bold;
+}
