@@ -25,4 +25,16 @@ module Utils{
 			return val;
 		}
 	}
+
+	export function strip(str) : string
+	{
+		return str.replace(/^\s+/, '').replace(/\s+$/, '');
+	}
+
+	export function getArgumentNamesFor(func) : string[]
+	{
+		var names = func.toString().match(/^[\s\(]*function[^(]*\((.*?)\)/)[1].split(",");
+		names = names.map(Utils.strip);
+		return (names.length == 1 && !names[0]) ? [] : names;
+	}
 }

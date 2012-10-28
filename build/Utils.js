@@ -22,5 +22,15 @@ var Utils;
         }
     }
     Utils.getHashCodeFor = getHashCodeFor;
+    function strip(str) {
+        return str.replace(/^\s+/, '').replace(/\s+$/, '');
+    }
+    Utils.strip = strip;
+    function getArgumentNamesFor(func) {
+        var names = func.toString().match(/^[\s\(]*function[^(]*\((.*?)\)/)[1].split(",");
+        names = names.map(Utils.strip);
+        return (names.length == 1 && !names[0]) ? [] : names;
+    }
+    Utils.getArgumentNamesFor = getArgumentNamesFor;
 })(Utils || (Utils = {}));
 

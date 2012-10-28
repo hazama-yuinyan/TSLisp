@@ -138,7 +138,7 @@ var Common;
                     return cur.data;
                 }
             }
-            return null;
+            return undefined;
         };
         HashTable.prototype.contains = function (key) {
             var val = this.hash_func(key);

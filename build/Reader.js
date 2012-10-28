@@ -43,36 +43,46 @@ var TSLisp;
         };
         Reader.prototype.parseExpression = function () {
             var tc = this.Current;
-            if(typeof tc == "string") {
-                switch(tc) {
-                    case '.':
-                    case ')': {
-                        throw new SyntaxError("Unexpected " + tc);
+            switch(tc) {
+                case '.':
+                case ')': {
+                    throw new SyntaxError("Unexpected " + tc);
 
-                    }
-                    case '(': {
-                        this.moveNext();
-                        return this.parseListBody();
-
-                    }
-                    case '\'': {
-                        this.moveNext();
-                        return TSLisp.LL.list(TSLisp.LL.S_QUOTE, this.parseExpression());
-
-                    }
-                    case '~': {
-                        this.moveNext();
-                        return TSLisp.LL.list(TSLisp.LL.S_DELAY, this.parseExpression());
-
-                    }
-                    case '`': {
-                        this.moveNext();
-                        return QQ.expand(this.parseExpression());
-
-                    }
                 }
-            } else {
-                return tc;
+                case '(': {
+                    this.moveNext();
+                    return this.parseListBody();
+
+                }
+                case '\'': {
+                    this.moveNext();
+                    return TSLisp.LL.list(TSLisp.LL.S_QUOTE, this.parseExpression());
+
+                }
+                case '~': {
+                    this.moveNext();
+                    return TSLisp.LL.list(TSLisp.LL.S_DELAY, this.parseExpression());
+
+                }
+                case '`': {
+                    this.moveNext();
+                    return QQ.expand(this.parseExpression());
+
+                }
+                case ',': {
+                    this.moveNext();
+                    return new QQ.Unquote(this.parseExpression());
+
+                }
+                case ",@": {
+                    this.moveNext();
+                    return new QQ.UnquoteSplicing(this.parseExpression());
+
+                }
+                default: {
+                    return tc;
+
+                }
             }
         };
         Reader.prototype.parseListBody = function () {
@@ -137,6 +147,8 @@ var TSLisp;
                             }
                         });
                         ch.moveNext();
+                    } else {
+                        _this.is_eof = true;
                     }
                 } else {
                     if(_this.state != "parsing_list") {
@@ -177,8 +189,19 @@ var TSLisp;
                             break;
 
                         }
+                        case ',': {
+                            ch.moveNext();
+                            if(ch.Current == '@') {
+                                return ",@";
+                            } else {
+                                _this.state = "parsing_list";
+                                return ',';
+                            }
+                            break;
+
+                        }
                         case '"': {
-                            return _this.getString(_this.char_iter);
+                            return _this.getString(ch);
                             break;
 
                         }
@@ -373,12 +396,122 @@ var TSLisp;
         return Lexer;
     })();
     TSLisp.Lexer = Lexer;    
-    var QQ = (function () {
-        function QQ() { }
-        QQ.expand = function expand(obj) {
+    (function (QQ) {
+        var Unquote = (function () {
+            function Unquote(x) {
+                this.x = x;
+            }
+            Unquote.prototype.toString = function () {
+                return "," + TSLisp.LL.str(this.x);
+            };
+            return Unquote;
+        })();
+        QQ.Unquote = Unquote;        
+        var UnquoteSplicing = (function () {
+            function UnquoteSplicing(x) {
+                this.x = x;
+            }
+            UnquoteSplicing.prototype.toString = function () {
+                return ",@" + TSLisp.LL.str(this.x);
+            };
+            return UnquoteSplicing;
+        })();
+        QQ.UnquoteSplicing = UnquoteSplicing;        
+        function expand(x) {
+            if(x instanceof TSLisp.Cell) {
+                var t = QQ.expand1(x);
+                if(t.Cdr == null) {
+                    var k = t.Car;
+                    if(k instanceof TSLisp.Cell && k.Car == TSLisp.LL.S_LIST || k.Car == TSLisp.LL.S_CONS) {
+                        return k;
+                    }
+                }
+                return new TSLisp.Cell(TSLisp.LL.S_APPEND, t);
+            } else {
+                if(x instanceof QQ.Unquote) {
+                    return (x).x;
+                } else {
+                    return QQ.quote(x);
+                }
+            }
         }
-        return QQ;
-    })();
-    TSLisp.QQ = QQ;    
+        QQ.expand = expand;
+        function quote(x) {
+            if(x instanceof TSLisp.Symbol || x instanceof TSLisp.Arg || x instanceof TSLisp.Cell) {
+                return TSLisp.LL.list(TSLisp.LL.S_QUOTE, x);
+            } else {
+                return x;
+            }
+        }
+        QQ.quote = quote;
+        function expand1(x) {
+            if(x instanceof TSLisp.Cell) {
+                var xc = x;
+                var h = QQ.expand2(xc.Car);
+                var t = QQ.expand1(xc.Cdr);
+                if(t instanceof TSLisp.Cell) {
+                    var tc = t;
+                    if(tc.Car == null && tc.Cdr == null) {
+                        return TSLisp.LL.list(h);
+                    } else {
+                        if(h instanceof TSLisp.Cell) {
+                            var hc = h;
+                            if(hc.Car == TSLisp.LL.S_LIST) {
+                                if(tc.Car instanceof TSLisp.Cell) {
+                                    var t_car = tc.Car;
+                                    if(t_car.Car == TSLisp.LL.S_LIST) {
+                                        var hh = QQ.concat(hc, t_car.Cdr);
+                                        return new TSLisp.Cell(hh, tc.Cdr);
+                                    }
+                                }
+                                if(hc.Cdr instanceof TSLisp.Cell) {
+                                    var hh2 = QQ.consCons(hc.Cdr, tc.Car);
+                                    return new TSLisp.Cell(hh2, tc.Cdr);
+                                }
+                            }
+                        }
+                    }
+                }
+                return new TSLisp.Cell(h, t);
+            } else {
+                if(x instanceof Unquote) {
+                    return TSLisp.LL.list((x).x);
+                } else {
+                    return TSLisp.LL.list(QQ.quote(x));
+                }
+            }
+        }
+        QQ.expand1 = expand1;
+        function concat(x, y) {
+            if(x == null) {
+                return y;
+            } else {
+                return new TSLisp.Cell(x.Car, QQ.concat(x.Cdr, y));
+            }
+        }
+        QQ.concat = concat;
+        function consCons(x, y) {
+            if(x == null) {
+                return y;
+            } else {
+                return TSLisp.LL.list(TSLisp.LL.S_CONS, x.Car, QQ.consCons(x.Cdr, y));
+            }
+        }
+        QQ.consCons = consCons;
+        function expand2(x) {
+            if(x instanceof Unquote) {
+                return TSLisp.LL.list(TSLisp.LL.S_LIST, (x).x);
+            } else {
+                if(x instanceof UnquoteSplicing) {
+                    return (x).x;
+                } else {
+                    return TSLisp.LL.list(TSLisp.LL.S_LIST, QQ.expand(x));
+                }
+            }
+        }
+        QQ.expand2 = expand2;
+    })(TSLisp.QQ || (TSLisp.QQ = {}));
+    var QQ = TSLisp.QQ;
+
 })(TSLisp || (TSLisp = {}));
 

@@ -1,11 +1,14 @@
 ///<reference path='LispTypes.ts' />
 ///<reference path='Utils.ts' />
-///<reference path='Interfaces.ts' />
+///<reference path='Common.ts' />
 
 
 
 module TSLisp
 {
+    /**
+     * S Expression Reader for Lisp.
+     */
     export class Reader
     {
         private lexer : Lexer;
@@ -32,7 +35,7 @@ module TSLisp
         }
 
         /**
-         * Reads an S Expression.
+         * Reads an S Expression from the given lexer.
          */
         public read() : any
         {
@@ -67,31 +70,36 @@ module TSLisp
         private parseExpression()
         {
             var tc = this.Current;
-            if(typeof tc == "string"){
-                switch(tc){
-                case '.':
-                case ')':
-                    throw new SyntaxError("Unexpected " + tc);
+            switch(tc){
+            case '.':
+            case ')':
+                throw new SyntaxError("Unexpected " + tc);
 
-                case '(':
-                    this.moveNext();
-                    return this.parseListBody();
+            case '(':
+                this.moveNext();
+                return this.parseListBody();
 
-                case '\'':
-                    this.moveNext();
-                    return LL.list(LL.S_QUOTE, this.parseExpression());
+            case '\'':
+                this.moveNext();
+                return LL.list(LL.S_QUOTE, this.parseExpression());
 
-                case '~':
-                    this.moveNext();
-                    return LL.list(LL.S_DELAY, this.parseExpression());
+            case '~':
+                this.moveNext();
+                return LL.list(LL.S_DELAY, this.parseExpression());
 
-                case '`':
-                    this.moveNext();
-                    return QQ.expand(this.parseExpression());
+            case '`':
+                this.moveNext();
+                return QQ.expand(this.parseExpression());
 
-                //case ''
-                }
-            }else{
+            case ',':
+                this.moveNext();
+                return new QQ.Unquote(this.parseExpression());
+
+            case ",@":
+                this.moveNext();
+                return new QQ.UnquoteSplicing(this.parseExpression());
+                
+            default:
                 return tc;
             }
         }
@@ -119,6 +127,9 @@ module TSLisp
         }
     }
 
+    /**
+     * The Lisp lexer. It recognizies tokens in Lisp and returns them one by one.
+     */
     export class Lexer implements Common.IEnumerable
     {
         private cur_line : number = 0;
@@ -140,6 +151,9 @@ module TSLisp
             this.raw_input = input.getEnumerator();
         }
         
+        /**
+         * Resets the Lexer's state.
+         */
     	public reset()
     	{
     		this.state = "eager";
@@ -162,6 +176,8 @@ module TSLisp
                             }
                         });
                         ch.moveNext();
+                    }else{
+                        this.is_eof = true;
                     }
                 }else{
                     if(this.state != "parsing_list")
@@ -192,8 +208,18 @@ module TSLisp
                         return cc;
                         break;
 
+                    case ',':
+                        ch.moveNext();
+                        if(ch.Current == '@'){
+                            return ",@";
+                        }else{
+                            this.state = "parsing_list";
+                            return ',';
+                        }
+                        break;
+
                     case '"':
-                        return this.getString(this.char_iter);
+                        return this.getString(ch);
                         break;
 
                     default:
@@ -230,7 +256,6 @@ module TSLisp
 
     	private getString(ch : Common.Enumerator) : any
     	{
-            //if(iter.Current != '"') throw new SyntaxError("")
             var result = "";
             ch.moveNext();
 
@@ -355,8 +380,123 @@ module TSLisp
         }
     }
 
-    export class QQ
+    /**
+     * Represents Quasi-Quotation
+     */
+    export module QQ
     {
-        public static expand(obj : any){}
+        export class Unquote
+        {
+            constructor(public x) {}
+
+            public toString() : string
+            {
+                return "," + LL.str(this.x);
+            }
+        }
+
+        export class UnquoteSplicing
+        {
+            constructor(public x) {}
+
+            public toString() : string
+            {
+                return ",@" + LL.str(this.x);
+            }
+        }
+
+        /**
+         * Expands x in a Quasi-Quotation `x to an equivalent S expression
+         */
+        export function expand(x : any)
+        {
+            if(x instanceof Cell){
+                var t : Cell = QQ.expand1(x);
+                if(t.Cdr == null){
+                    var k = <Cell>t.Car;
+                    if(k instanceof Cell && k.Car == LL.S_LIST || k.Car == LL.S_CONS)
+                        return k;
+                }
+
+                return new Cell(LL.S_APPEND, t);
+            }else if(x instanceof QQ.Unquote)
+                return <Unquote>(x).x;
+            else
+                return QQ.quote(x);
+        }
+
+        export function quote(x)
+        {
+            if(x instanceof Symbol || x instanceof Arg || x instanceof Cell)
+                return LL.list(LL.S_QUOTE, x);
+            else
+                return x;
+        }
+
+        export function expand1(x)
+        {
+            if(x instanceof Cell){
+                var xc : Cell = <Cell>x;
+                var h = QQ.expand2(xc.Car);
+                var t = QQ.expand1(xc.Cdr);
+
+                if(t instanceof Cell){
+                    var tc : Cell = <Cell>t;
+
+                    if(tc.Car == null && tc.Cdr == null)
+                        return LL.list(h);
+                    else if(h instanceof Cell){
+                        var hc : Cell = <Cell>h;
+
+                        if(hc.Car == LL.S_LIST){
+                            if(tc.Car instanceof Cell){
+                                var t_car : Cell = <Cell>tc.Car;
+
+                                if(t_car.Car == LL.S_LIST){
+                                    var hh = QQ.concat(hc, t_car.Cdr);
+                                    return new Cell(hh, tc.Cdr);
+                                }
+                            }
+
+                            if(hc.Cdr instanceof Cell){
+                                var hh2 = QQ.consCons(<Cell>hc.Cdr, tc.Car);
+                                return new Cell(hh2, tc.Cdr);
+                            }
+                        }
+                    }
+                }
+
+                return new Cell(h, t);
+            }else if(x instanceof Unquote)
+                return LL.list(<Unquote>(x).x);
+            else
+                return LL.list(QQ.quote(x));
+        }
+
+        export function concat(x : Cell, y : any)
+        {
+            if(x == null)
+                return y;
+            else
+                return new Cell(x.Car, QQ.concat(<Cell>x.Cdr, y));
+        }
+
+        export function consCons(x : Cell, y : any)
+        {
+            if(x == null)
+                return y;
+            else
+                return LL.list(LL.S_CONS, x.Car, QQ.consCons(<Cell>x.Cdr, y));
+        }
+
+        export function expand2(x) : any
+        {
+            if(x instanceof Unquote)
+                return LL.list(LL.S_LIST, <Unquote>(x).x);
+            else if(x instanceof UnquoteSplicing)
+                return <UnquoteSplicing>(x).x;
+            else
+                return LL.list(LL.S_LIST, QQ.expand(x));
+        }
     }
 }

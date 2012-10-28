@@ -13,12 +13,14 @@ module TSLisp
         private name : string;
         private static symbols = {};
 
+        public get Name() {return this.name;}
+
         constructor(name : string)
         {
             this.name = name;
         }
 
-        public static symbolOf(name : string)
+        public static symbolOf(name : string) : Symbol
         {
             var s = Symbol.symbols[name];
             if(!s){
@@ -79,10 +81,10 @@ module TSLisp
                 return "nil";
             }else if(x instanceof Cell){
                 var xc = <Cell>x;
-                if(xc.Car == LL.S_QUOTE && xc.Cdr instanceof Cell){
-                    var xcdr = <Cell>xc.Cdr;
-                    if(xcdr.Cdr === null)
-                        return "'" + LL.str(xcdr.Car, printQuote, recLevel, printed);
+                if(xc.car == LL.S_QUOTE && xc.cdr instanceof Cell){
+                    var xcdr = <Cell>xc.cdr;
+                    if(xcdr.cdr === null)
+                        return "'" + LL.str(xcdr.car, printQuote, recLevel, printed);
                 }
 
                 return "(" + xc.repr(printQuote, recLevel, printed) + ")";
@@ -117,25 +119,72 @@ module TSLisp
             }
         }
 
+        /**
+         * Takes variable number of arguments and returns them as a Lisp list.
+         */
         public static list(... args : Object[]) : Cell
         {
-            return LL.listFrom(args);
+            var i = 0;
+            return LL.listFrom(new Common.Enumerator(() => {
+                if(i < args.length){
+                    return args[i++];
+                }
+            }));
         }
 
-        public static listFrom(args : Object[]) : Cell
+        /**
+         * Takes an enumerator and returns them as a Lisp list.
+         */
+        public static listFrom(args : Common.Enumerator) : Cell
         {
             if(!args) return null;
 
             var z : Cell = null; var y : Cell = null;
-            args.forEach(function(arg){
-                var x : Cell = new Cell(arg, null);
+            while(args.moveNext()){
+                var x : Cell = new Cell(args.Current, null);
                 if(!z)
                     z = x;
                 else
-                    y.Cdr = x;
+                    y.cdr = x;
 
                 y = x;
-            });
+            }
+
+            return z;
+        }
+
+        /**
+         * Takes a Lisp list and transforms it to a list object.
+         */
+        public static listFromTS(args : Common.IEnumerable) : Common.IList
+        {
+            if(args == null)
+                return new Common.List();
+            else
+                return new Common.List(args.getEnumerator());
+        }
+
+        /**
+         * A native implementation of mapcar function in Lisp.
+         */
+        public static mapCar(fn : (x) => any, args : Common.IEnumerable)
+        {
+            if(!fn)
+                throw new Error("Null function");
+            
+            if(args == null)
+                return null;
+
+            var z : Cell = null; var y : Cell = null; var er = args.getEnumerator();
+            while(er.moveNext()){
+                var x : Cell = new Cell(fn(er.Current), null);
+                if(z === null)
+                    z = x;
+                else
+                    y.cdr = x;
+
+                y = x;
+            }
 
             return z;
         }
@@ -150,12 +199,16 @@ module TSLisp
         private message : string;
         private trace = [];
 
+        public get Trace() {return this.trace;}
+
         constructor(msg : string, exp? : any)
         {
             if(exp)
                 this.message = msg + ": " + LL.str(exp);
             else
                 this.message = msg;
+
+            this.name = "EvalException";
         }
 
         public toString() : string
@@ -206,12 +259,9 @@ module TSLisp
     /**
      * Represents a cons cell in Lisp.
      */
-    export class Cell
+    export class Cell implements Common.IEnumerable
     {
-        private car : any;
-        private cdr : any;
-
-        constructor(car, cdr)
+        constructor(public car : any, public cdr : any)
         {
             this.car = car;
             this.cdr = cdr;
@@ -223,6 +273,20 @@ module TSLisp
         public get Cdr() {return this.cdr;}
         public set Cdr(val : any) {this.cdr = val;}
 
+        public getEnumerator() : Common.Enumerator
+        {
+            var j : Object = this;
+            return new Common.Enumerator(() => {
+                var jc = <Cell>j;
+                if(!(jc instanceof Cell)) return undefined;
+                j = jc.cdr;
+                if(j instanceof Promise)
+                    (<Promise> j).resolve();
+
+                return jc.car;
+            });
+        }
+
         /**
          * Sees this cell as a Lisp list and makes an array of those elements
          */
@@ -230,7 +294,7 @@ module TSLisp
         {
             var j = this, result = [];
             while(true){
-                if(!j || !(j instanceof(Cell))) return null;
+                if(!(j instanceof(Cell))) break;
                 result.push(j);
                 j = j.cdr;
             }
@@ -272,9 +336,25 @@ module TSLisp
         }
     }
 
-    class DefinedFunction
+    /**
+     * Represents a Lisp function instance.
+     * help_msg can be null if no help message is needed.
+     * has_optional indicates whether the function has optional parameters or not.
+     * accepts_variable_args indicates whether the function can take more than three arguments or not.
+     */
+    export class LispFunction
     {
-        constructor(public arity : number, public body : any, public env : Cell){}
+        constructor(public body : Function, public help_msg : string, public has_optional : bool, public accepts_variable_args : bool) {}
+
+        public toString() : string
+        {
+            return this.body.toString();
+        }
+    }
+
+    export class DefinedFunction
+    {
+        constructor(public arity : number, public body : any, public env : Cell) {}
     }
 
     /**
@@ -330,16 +410,7 @@ module TSLisp
      */
     export class Arg
     {
-        private level : number;
-        private offset : number;
-        private symbol : Symbol;
-
-        constructor(level : number, offset : number, symbol : Symbol)
-        {
-            this.level = level;
-            this.offset = offset;
-            this.symbol = symbol;
-        }
+        constructor(public level : number, public offset : number, public symbol : Symbol){}
 
         public toString() : string
         {
@@ -348,14 +419,14 @@ module TSLisp
 
         public setValue(x : any, env : Cell)
         {
-            for(var i = 0; i < this.level; ++i) env = x.Cdr;
-            env.Car[this.offset] = x;
+            for(var i = 0; i < this.level; ++i) env = x.cdr;
+            env.car[this.offset] = x;
         }
 
         public getValue(env : Cell)
         {
-            for(var i = 0; i < this.level; ++i) env = env.Cdr;
-            return env.Car[this.offset];
+            for(var i = 0; i < this.level; ++i) env = env.cdr;
+            return env.car[this.offset];
         }
     }
 
@@ -364,16 +435,70 @@ module TSLisp
      */
     export class Dummy
     {
-        private symbol : Symbol;
-
-        constructor(symbol : Symbol)
-        {
-            this.symbol = symbol;
-        }
+        constructor(public symbol : Symbol){}
 
         public toString() : string
         {
             return ":" + this.symbol + ":Dummy";
+        }
+    }
+
+    /**
+     * Represents a promise object.
+     * In other words, it is the result of an evaluated Lisp expression "(delay exp)"
+     */
+    export class Promise
+    {
+        private exp;
+        private environ : Cell;
+        private interp : Interpreter;
+
+        private static NONE = new Cell(null, null);
+
+        constructor(exp, environ, interp)
+        {
+            this.exp = exp;
+            this.environ = environ;
+            this.interp = interp;
+        }
+
+        public toString() : string
+        {
+            if(this.environ == Promise.NONE)
+                return LL.str(this.exp);
+            else
+                return "#<promise>";
+        }
+
+        public get Value() {
+            if(this.environ == Promise.NONE)
+                return this.exp;
+            else
+                return this;
+        }
+
+        public resolve()
+        {
+            if(this.environ != Promise.NONE){
+                var old_env = this.interp.environ;
+                this.interp.environ = this.environ;
+                var x;
+                try{
+                    x = this.interp.evaluate(this.exp, true);
+                    if(x instanceof Promise)
+                        x = <Promise>(x).resolve();
+                }
+                finally{
+                    this.interp.environ = old_env;
+                }
+
+                if(this.environ != Promise.NONE){
+                    this.exp = x;
+                    this.environ = Promise.NONE;
+                }
+            }
+
+            return this.exp;
         }
     }
 }

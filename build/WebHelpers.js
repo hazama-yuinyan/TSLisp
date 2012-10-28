@@ -53,12 +53,17 @@ var Common;
                 HtmlConsole.console_elem.insertBefore(document.createTextNode("> "), HtmlConsole.cursor);
             }
         }
+        HtmlConsole.clearLastDisplayedHistory = function clearLastDisplayedHistory() {
+            var last_line = HtmlConsole.cursor.previousSibling;
+            HtmlConsole.console_elem.removeChild(last_line);
+        }
         HtmlConsole.onKeyPress = function onKeyPress(e) {
             switch(e.keyCode) {
                 case 13: {
                     HtmlConsole.inst.buffer = HtmlConsole.inst.buffer.concat("\n");
                     HtmlConsole.inst.histrory.push(HtmlConsole.inst.buffer);
                     HtmlConsole.console_elem.insertBefore(document.createElement("br"), HtmlConsole.cursor);
+                    HtmlConsole.inst.cur_history_num = HtmlConsole.inst.histrory.length;
                     HtmlConsole.inst.primary = false;
                     break;
 
@@ -87,6 +92,7 @@ var Common;
                         HtmlConsole.inst.cur_history_num = HtmlConsole.inst.histrory.length - 1;
                     }
                     HtmlConsole.inst.buffer = HtmlConsole.inst.histrory[HtmlConsole.inst.cur_history_num];
+                    HtmlConsole.clearLastDisplayedHistory();
                     HtmlConsole.inst.update();
                     break;
 
@@ -97,6 +103,7 @@ var Common;
                         HtmlConsole.inst.cur_history_num = 0;
                     }
                     HtmlConsole.inst.buffer = HtmlConsole.inst.histrory[HtmlConsole.inst.cur_history_num];
+                    HtmlConsole.clearLastDisplayedHistory();
                     HtmlConsole.inst.update();
                     break;
 

@@ -11,6 +11,13 @@ var TSLisp;
         }
         Symbol.symbols = {
         };
+        Object.defineProperty(Symbol.prototype, "Name", {
+            get: function () {
+                return this.name;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Symbol.symbolOf = function symbolOf(name) {
             var s = Symbol.symbols[name];
             if(!s) {
@@ -67,10 +74,10 @@ var TSLisp;
             } else {
                 if(x instanceof Cell) {
                     var xc = x;
-                    if(xc.Car == LL.S_QUOTE && xc.Cdr instanceof Cell) {
-                        var xcdr = xc.Cdr;
-                        if(xcdr.Cdr === null) {
-                            return "'" + LL.str(xcdr.Car, printQuote, recLevel, printed);
+                    if(xc.car == LL.S_QUOTE && xc.cdr instanceof Cell) {
+                        var xcdr = xc.cdr;
+                        if(xcdr.cdr === null) {
+                            return "'" + LL.str(xcdr.car, printQuote, recLevel, printed);
                         }
                     }
                     return "(" + xc.repr(printQuote, recLevel, printed) + ")";
@@ -118,7 +125,12 @@ var TSLisp;
             for (var _i = 0; _i < (arguments.length - 0); _i++) {
                 args[_i] = arguments[_i + 0];
             }
-            return LL.listFrom(args);
+            var i = 0;
+            return LL.listFrom(new Common.Enumerator(function () {
+                if(i < args.length) {
+                    return args[i++];
+                }
+            }));
         }
         LL.listFrom = function listFrom(args) {
             if(!args) {
@@ -126,15 +138,43 @@ var TSLisp;
             }
             var z = null;
             var y = null;
-            args.forEach(function (arg) {
-                var x = new Cell(arg, null);
+            while(args.moveNext()) {
+                var x = new Cell(args.Current, null);
                 if(!z) {
                     z = x;
                 } else {
-                    y.Cdr = x;
+                    y.cdr = x;
                 }
                 y = x;
-            });
+            }
+            return z;
+        }
+        LL.listFromTS = function listFromTS(args) {
+            if(args == null) {
+                return new Common.List();
+            } else {
+                return new Common.List(args.getEnumerator());
+            }
+        }
+        LL.mapCar = function mapCar(fn, args) {
+            if(!fn) {
+                throw new Error("Null function");
+            }
+            if(args == null) {
+                return null;
+            }
+            var z = null;
+            var y = null;
+            var er = args.getEnumerator();
+            while(er.moveNext()) {
+                var x = new Cell(fn(er.Current), null);
+                if(z === null) {
+                    z = x;
+                } else {
+                    y.cdr = x;
+                }
+                y = x;
+            }
             return z;
         }
         return LL;
@@ -148,7 +188,15 @@ var TSLisp;
             } else {
                 this.message = msg;
             }
+            this.name = "EvalException";
         }
+        Object.defineProperty(EvalException.prototype, "Trace", {
+            get: function () {
+                return this.trace;
+            },
+            enumerable: true,
+            configurable: true
+        });
         EvalException.prototype.toString = function () {
             var result = "*** " + this.message;
             this.trace.forEach(function (path, index) {
@@ -203,6 +251,8 @@ var TSLisp;
         function Cell(car, cdr) {
             this.car = car;
             this.cdr = cdr;
+            this.car = car;
+            this.cdr = cdr;
         }
         Object.defineProperty(Cell.prototype, "Car", {
             get: function () {
@@ -224,13 +274,27 @@ var TSLisp;
             enumerable: true,
             configurable: true
         });
+        Cell.prototype.getEnumerator = function () {
+            var j = this;
+            return new Common.Enumerator(function () {
+                var jc = j;
+                if(!(jc instanceof Cell)) {
+                    return undefined;
+                }
+                j = jc.cdr;
+                if(j instanceof Promise) {
+                    (j).resolve();
+                }
+                return jc.car;
+            });
+        };
         Cell.prototype.toArray = function () {
             var j = this;
             var result = [];
 
             while(true) {
-                if(!j || !(j instanceof (Cell))) {
-                    return null;
+                if(!(j instanceof (Cell))) {
+                    break;
                 }
                 result.push(j);
                 j = j.cdr;
@@ -277,6 +341,19 @@ var TSLisp;
         return Cell;
     })();
     TSLisp.Cell = Cell;    
+    var LispFunction = (function () {
+        function LispFunction(body, help_msg, has_optional, accepts_variable_args) {
+            this.body = body;
+            this.help_msg = help_msg;
+            this.has_optional = has_optional;
+            this.accepts_variable_args = accepts_variable_args;
+        }
+        LispFunction.prototype.toString = function () {
+            return this.body.toString();
+        };
+        return LispFunction;
+    })();
+    TSLisp.LispFunction = LispFunction;    
     var DefinedFunction = (function () {
         function DefinedFunction(arity, body, env) {
             this.arity = arity;
@@ -284,7 +361,8 @@ var TSLisp;
             this.env = env;
         }
         return DefinedFunction;
-    })();    
+    })();
+    TSLisp.DefinedFunction = DefinedFunction;    
     var Macro = (function (_super) {
         __extends(Macro, _super);
         function Macro(arity, body) {
@@ -329,15 +407,15 @@ var TSLisp;
         };
         Arg.prototype.setValue = function (x, env) {
             for(var i = 0; i < this.level; ++i) {
-                env = x.Cdr;
+                env = x.cdr;
             }
-            env.Car[this.offset] = x;
+            env.car[this.offset] = x;
         };
         Arg.prototype.getValue = function (env) {
             for(var i = 0; i < this.level; ++i) {
-                env = env.Cdr;
+                env = env.cdr;
             }
-            return env.Car[this.offset];
+            return env.car[this.offset];
         };
         return Arg;
     })();
@@ -352,5 +430,53 @@ var TSLisp;
         return Dummy;
     })();
     TSLisp.Dummy = Dummy;    
+    var Promise = (function () {
+        function Promise(exp, environ, interp) {
+            this.exp = exp;
+            this.environ = environ;
+            this.interp = interp;
+        }
+        Promise.NONE = new Cell(null, null);
+        Promise.prototype.toString = function () {
+            if(this.environ == Promise.NONE) {
+                return LL.str(this.exp);
+            } else {
+                return "#<promise>";
+            }
+        };
+        Object.defineProperty(Promise.prototype, "Value", {
+            get: function () {
+                if(this.environ == Promise.NONE) {
+                    return this.exp;
+                } else {
+                    return this;
+                }
+            },
+            enumerable: true,
+            configurable: true
+        });
+        Promise.prototype.resolve = function () {
+            if(this.environ != Promise.NONE) {
+                var old_env = this.interp.environ;
+                this.interp.environ = this.environ;
+                var x;
+                try  {
+                    x = this.interp.evaluate(this.exp, true);
+                    if(x instanceof Promise) {
+                        x = (x).resolve();
+                    }
+                }finally {
+                    this.interp.environ = old_env;
+                }
+                if(this.environ != Promise.NONE) {
+                    this.exp = x;
+                    this.environ = Promise.NONE;
+                }
+            }
+            return this.exp;
+        };
+        return Promise;
+    })();
+    TSLisp.Promise = Promise;    
 })(TSLisp || (TSLisp = {}));
 
