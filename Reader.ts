@@ -6,6 +6,14 @@
 
 module TSLisp
 {
+    export class Lines
+    {
+        public static fromString(str : string) : Common.StringReader
+        {
+            return new Common.StringReader(str);
+        }
+    }
+
     /**
      * S Expression Reader for Lisp.
      */
@@ -40,14 +48,14 @@ module TSLisp
         public read() : any
         {
             this.lexer.reset();
-            /*if(this.last_error){ //If we saw an error at last time, then skip to the next line
-                /*var line = this.lexer.CurLine;
-                while(this.lexer.CurLine == line) this.lexer.next();
+            if(this.last_error){ //If we saw an error at last time, then skip to the next line
+                var n = this.lexer.LineNumber;
+                while(this.has_current && this.lexer.LineNumber == n) this.moveNext();
                 this.last_error = false;
             }else{
-            }*/
-            if(this.has_current)
-                this.moveNext();
+                if(this.has_current)
+                    this.moveNext();
+            }
 
             if(this.has_current){
                 try{
@@ -55,7 +63,7 @@ module TSLisp
                 }
                 catch(ex){
                     this.last_error = true;
-                    throw new EvalException("SyntaxError : " + ex.message + /*" -- " + this.lexer.CurLine +*/ " : " + this.lexer.Line);
+                    throw new EvalException("SyntaxError : " + ex.message + " -- " + this.lexer.LineNumber + " : " + this.lexer.Line);
                 }
             }else{
                 return Reader.EOF;
@@ -128,26 +136,25 @@ module TSLisp
     }
 
     /**
-     * The Lisp lexer. It recognizies tokens in Lisp and returns them one by one.
+     * The Lisp lexer. It recognizes tokens in Lisp and returns them one by one.
      */
     export class Lexer implements Common.IEnumerable
     {
         private cur_line : number = 0;
         private line : string = "";
         private is_eof : bool = false;
-        private console_obj;
+        private console_obj : Common.HtmlConsole;
         private raw_input : Common.Enumerator;
         private char_iter : Common.Enumerator;
         private state = "eager";
-        private static EOF = LL.S_EOF;
 
-        //public get CurLine(){return this.cur_line;}
+        public get LineNumber() {return this.cur_line;}
 
         public get Line() {return this.line;}
         
         constructor(input : Common.IEnumerable)
         {
-            this.console_obj = input;
+            this.console_obj = Common.HtmlConsole.instance();
             this.raw_input = input.getEnumerator();
         }
         
@@ -157,6 +164,7 @@ module TSLisp
     	public reset()
     	{
     		this.state = "eager";
+            this.is_eof = false;
             if(this.console_obj.reset) this.console_obj.reset();
     	}
 
@@ -171,8 +179,18 @@ module TSLisp
                         ++this.cur_line;
                         var cur_pos = 0;
                         ch = new Common.Enumerator(() => {
-                            if(this.line.length > cur_pos){
+                            if(!this.is_eof && this.line.length > cur_pos){
                                 return this.line[cur_pos++];
+                            }else{
+                                if(this.raw_input.moveNext()){
+                                    this.line = this.raw_input.Current;
+                                    ++this.cur_line;
+                                    cur_pos = 0;
+                                    return '\n';
+                                }else{
+                                    this.is_eof = true;
+                                    return undefined;
+                                }
                             }
                         });
                         ch.moveNext();
@@ -180,76 +198,71 @@ module TSLisp
                         this.is_eof = true;
                     }
                 }else{
-                    if(this.state != "parsing_list")
+                    if(this.state != "don't_move")
                         ch.moveNext();
                     else
                         this.state = "full";
                 }
 
-                while(true){
-                    while(!this.is_eof && Utils.isWhitespace(ch.Current)) ch.moveNext();  //skip whitespace characters
-                    if(this.is_eof) break;
+                while(!this.is_eof && Utils.isWhitespace(ch.Current)) ch.moveNext();  //skip whitespace characters
+                if(this.is_eof) return undefined;
 
-                    var cc = ch.Current;
-                    if(!cc) return Lexer.EOF;
+                var cc = ch.Current;
+                if(!cc) return undefined;
 
-                    switch(cc){
-                    case ';':
-                        while(ch.moveNext() && ch.Current != '\n') ;
-                        if(this.is_eof) return;
-                        break;
+                switch(cc){
+                case ';':
+                    while(ch.moveNext() && ch.Current != '\n') ;
+                    if(this.is_eof) return undefined;
+                    break;
 
-                    case '(':
-                    case ')':
-                    case '.':
-                    case '\'':
-                    case '`':
-                    case '~':
-                        return cc;
-                        break;
+                case '(':
+                case ')':
+                case '.':
+                case '\'':
+                case '`':
+                case '~':
+                    return cc;
+                    break;
 
-                    case ',':
-                        ch.moveNext();
-                        if(ch.Current == '@'){
-                            return ",@";
-                        }else{
-                            this.state = "parsing_list";
-                            return ',';
-                        }
-                        break;
+                case ',':
+                    ch.moveNext();
+                    if(ch.Current == '@'){
+                        return ",@";
+                    }else{
+                        this.state = "don't_move";
+                        return ',';
+                    }
+                    break;
 
-                    case '"':
-                        return this.getString(ch);
-                        break;
+                case '"':
+                    return this.getString(ch);
+                    break;
 
-                    default:
-                        this.state = "parsing_list";
-                        var token = "";
-                        while(true){
-                            token += cc;
-                            if(!ch.moveNext()) break;
+                default:
+                    this.state = "don't_move";
+                    var token = "";
+                    while(true){
+                        token += cc;
+                        if(!ch.moveNext()) break;
 
-                            cc = ch.Current;
-                            if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) break;
-                        }
-
-                        if(token == "nil"){
-                            return null;
-                        }else{
-                            var nv = Lexer.tryToParseNumber(token);
-                            if(isNaN(nv)){
-                                if(Lexer.checkSymbol(token))
-                                    return Symbol.symbolOf(token);
-                                else
-                                    return new SyntaxError("Bad token: " + LL.str(token));
-                            }else{
-                                return nv;
-                            }
-                        }
-                        continue;
+                        cc = ch.Current;
+                        if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) break;
                     }
 
-                    ch.moveNext();
+                    if(token == "nil"){
+                        return null;
+                    }else{
+                        var nv = Lexer.tryToParseNumber(token);
+                        if(isNaN(nv)){
+                            if(Lexer.checkSymbol(token))
+                                return Symbol.symbolOf(token);
+                            else
+                                return new SyntaxError("Bad token: " + LL.str(token));
+                        }else{
+                            return nv;
+                        }
+                    }
                 }
             });
         }
@@ -412,9 +425,9 @@ module TSLisp
         {
             if(x instanceof Cell){
                 var t : Cell = QQ.expand1(x);
-                if(t.Cdr == null){
-                    var k = <Cell>t.Car;
-                    if(k instanceof Cell && k.Car == LL.S_LIST || k.Car == LL.S_CONS)
+                if(t.cdr == null){
+                    var k = <Cell>t.car;
+                    if(k instanceof Cell && k.car == LL.S_LIST || k.car == LL.S_CONS)
                         return k;
                 }
 
@@ -437,30 +450,30 @@ module TSLisp
         {
             if(x instanceof Cell){
                 var xc : Cell = <Cell>x;
-                var h = QQ.expand2(xc.Car);
-                var t = QQ.expand1(xc.Cdr);
+                var h = QQ.expand2(xc.car);
+                var t = QQ.expand1(xc.cdr);
 
                 if(t instanceof Cell){
                     var tc : Cell = <Cell>t;
 
-                    if(tc.Car == null && tc.Cdr == null)
+                    if(tc.car == null && tc.cdr == null)
                         return LL.list(h);
                     else if(h instanceof Cell){
                         var hc : Cell = <Cell>h;
 
-                        if(hc.Car == LL.S_LIST){
-                            if(tc.Car instanceof Cell){
-                                var t_car : Cell = <Cell>tc.Car;
+                        if(hc.car == LL.S_LIST){
+                            if(tc.car instanceof Cell){
+                                var t_car : Cell = <Cell>tc.car;
 
-                                if(t_car.Car == LL.S_LIST){
-                                    var hh = QQ.concat(hc, t_car.Cdr);
-                                    return new Cell(hh, tc.Cdr);
+                                if(t_car.car == LL.S_LIST){
+                                    var hh = QQ.concat(hc, t_car.cdr);
+                                    return new Cell(hh, tc.cdr);
                                 }
                             }
 
-                            if(hc.Cdr instanceof Cell){
-                                var hh2 = QQ.consCons(<Cell>hc.Cdr, tc.Car);
-                                return new Cell(hh2, tc.Cdr);
+                            if(hc.cdr instanceof Cell){
+                                var hh2 = QQ.consCons(<Cell>hc.cdr, tc.car);
+                                return new Cell(hh2, tc.cdr);
                             }
                         }
                     }
@@ -478,7 +491,7 @@ module TSLisp
             if(x == null)
                 return y;
             else
-                return new Cell(x.Car, QQ.concat(<Cell>x.Cdr, y));
+                return new Cell(x.car, QQ.concat(<Cell>x.cdr, y));
         }
 
         export function consCons(x : Cell, y : any)
@@ -486,7 +499,7 @@ module TSLisp
             if(x == null)
                 return y;
             else
-                return LL.list(LL.S_CONS, x.Car, QQ.consCons(<Cell>x.Cdr, y));
+                return LL.list(LL.S_CONS, x.car, QQ.consCons(<Cell>x.cdr, y));
         }
 
         export function expand2(x) : any

@@ -20,16 +20,10 @@ var TSLisp;
             this.symbols.add(TSLisp.LL.S_T, TSLisp.LL.S_T);
             this.symbols.add(TSLisp.Symbol.symbolOf("*version*"), TSLisp.LL.list(TSLisp.LL.Version, "TypeScript"));
             this.symbols.add(TSLisp.Symbol.symbolOf("*eof*"), TSLisp.LL.S_EOF);
-            var read_func_obj = {
-                body: this.reader.read,
-                help_msg: "(read) : reads an S expression from the standard input"
-            };
+            var read_func_obj = new TSLisp.LispFunction(this.reader.read, "(read) : reads an S expression from the standard input", false, false);
             this.symbols.add(TSLisp.Symbol.symbolOf("read"), read_func_obj);
             var list_func = TSLisp.LL.listFrom;
-            var list_func_obj = {
-                body: list_func,
-                help_msg: "(list a b c ...) => (a b c ...)"
-            };
+            var list_func_obj = new TSLisp.LispFunction(list_func, "(list a b c ...) => (a b c ...)", false, true);
             this.symbols.add(TSLisp.LL.S_LIST, list_func_obj);
             this.lazy.add(list_func, true);
         }
@@ -54,17 +48,30 @@ var TSLisp;
             enumerable: true,
             configurable: true
         });
-        Interpreter.prototype.run = function () {
+        Interpreter.prototype.run = function (lines) {
+            if(!lines) {
+                lines = Common.HtmlConsole.instance();
+            }
+            var interactive = lines instanceof Common.HtmlConsole;
+            var rr = new TSLisp.Reader(lines);
             var result = null;
-            try  {
-                var lisp_obj = this.reader.read();
-                if(lisp_obj == TSLisp.LL.S_EOF) {
-                    return result;
+            while(true) {
+                try  {
+                    var lisp_obj = rr.read();
+                    if(lisp_obj == TSLisp.LL.S_EOF) {
+                        return result;
+                    }
+                    result = this.evaluate(lisp_obj, false);
+                    if(interactive) {
+                        Common.HtmlConsole.println(TSLisp.LL.str(result));
+                    }
+                } catch (ex) {
+                    if(interactive) {
+                        Common.HtmlConsole.println(ex.message);
+                    } else {
+                        throw ex;
+                    }
                 }
-                result = this.evaluate(lisp_obj, false);
-                Common.HtmlConsole.println(TSLisp.LL.str(result));
-            } catch (ex) {
-                Common.HtmlConsole.println(ex.message);
             }
         };
         Interpreter.prototype.loadNatives = function (target) {
@@ -164,6 +171,11 @@ var TSLisp;
                                                             if(fn == TSLisp.LL.S_UNWIND_PROTECT) {
                                                             } else {
                                                                 if(fn == TSLisp.LL.S_DELAY) {
+                                                                    var kdr = xc.cdr;
+                                                                    if(kdr == null || kdr.cdr != null) {
+                                                                        throw new TSLisp.EvalException("Bad delay!");
+                                                                    }
+                                                                    return new TSLisp.Promise(kdr.car, this.environ, this);
                                                                 } else {
                                                                     var arg_list = xc.cdr;
                                                                     if(!(arg_list instanceof TSLisp.Cell) && xc.cdr != null) {
@@ -188,7 +200,7 @@ var TSLisp;
                                                                             this.applyDefined(fn, args, false, tmp);
                                                                             x = tmp[0];
                                                                         } else {
-                                                                            return this.callNative(fn, arg_list, !this.lazy.contains(fn));
+                                                                            return this.callNative(fn, arg_list, !this.lazy.contains(fn.body));
                                                                         }
                                                                     }
                                                                 }
@@ -572,6 +584,7 @@ var TSLisp;
             }
         };
         Interpreter.prototype.compileInners = function (j) {
+            var _this = this;
             if(j instanceof TSLisp.Cell) {
                 var jc = j;
                 var k = jc.car;
@@ -585,7 +598,9 @@ var TSLisp;
                         if(k == TSLisp.LL.S_MACRO) {
                             throw new TSLisp.EvalException("Nested macro", j);
                         } else {
-                            TSLisp.LL.mapCar(this.compileInners, jc);
+                            return TSLisp.LL.mapCar(function (x) {
+                                return _this.compileInners(x);
+                            }, jc);
                         }
                     }
                 }

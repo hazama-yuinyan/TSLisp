@@ -1,5 +1,13 @@
 var TSLisp;
 (function (TSLisp) {
+    var Lines = (function () {
+        function Lines() { }
+        Lines.fromString = function fromString(str) {
+            return new Common.StringReader(str);
+        }
+        return Lines;
+    })();
+    TSLisp.Lines = Lines;    
     var Reader = (function () {
         function Reader(input) {
             this.has_current = true;
@@ -24,15 +32,23 @@ var TSLisp;
         });
         Reader.prototype.read = function () {
             this.lexer.reset();
-            if(this.has_current) {
-                this.moveNext();
+            if(this.last_error) {
+                var n = this.lexer.LineNumber;
+                while(this.has_current && this.lexer.LineNumber == n) {
+                    this.moveNext();
+                }
+                this.last_error = false;
+            } else {
+                if(this.has_current) {
+                    this.moveNext();
+                }
             }
             if(this.has_current) {
                 try  {
                     return this.parseExpression();
                 } catch (ex) {
                     this.last_error = true;
-                    throw new TSLisp.EvalException("SyntaxError : " + ex.message + " : " + this.lexer.Line);
+                    throw new TSLisp.EvalException("SyntaxError : " + ex.message + " -- " + this.lexer.LineNumber + " : " + this.lexer.Line);
                 }
             } else {
                 return Reader.EOF;
@@ -114,10 +130,16 @@ var TSLisp;
             this.line = "";
             this.is_eof = false;
             this.state = "eager";
-            this.console_obj = input;
+            this.console_obj = Common.HtmlConsole.instance();
             this.raw_input = input.getEnumerator();
         }
-        Lexer.EOF = TSLisp.LL.S_EOF;
+        Object.defineProperty(Lexer.prototype, "LineNumber", {
+            get: function () {
+                return this.cur_line;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Object.defineProperty(Lexer.prototype, "Line", {
             get: function () {
                 return this.line;
@@ -127,6 +149,7 @@ var TSLisp;
         });
         Lexer.prototype.reset = function () {
             this.state = "eager";
+            this.is_eof = false;
             if(this.console_obj.reset) {
                 this.console_obj.reset();
             }
@@ -142,8 +165,18 @@ var TSLisp;
                         ++_this.cur_line;
                         var cur_pos = 0;
                         ch = new Common.Enumerator(function () {
-                            if(_this.line.length > cur_pos) {
+                            if(!_this.is_eof && _this.line.length > cur_pos) {
                                 return _this.line[cur_pos++];
+                            } else {
+                                if(_this.raw_input.moveNext()) {
+                                    _this.line = _this.raw_input.Current;
+                                    ++_this.cur_line;
+                                    cur_pos = 0;
+                                    return '\n';
+                                } else {
+                                    _this.is_eof = true;
+                                    return undefined;
+                                }
                             }
                         });
                         ch.moveNext();
@@ -151,92 +184,88 @@ var TSLisp;
                         _this.is_eof = true;
                     }
                 } else {
-                    if(_this.state != "parsing_list") {
+                    if(_this.state != "don't_move") {
                         ch.moveNext();
                     } else {
                         _this.state = "full";
                     }
                 }
-                while(true) {
-                    while(!_this.is_eof && Utils.isWhitespace(ch.Current)) {
-                        ch.moveNext();
-                    }
-                    if(_this.is_eof) {
-                        break;
-                    }
-                    var cc = ch.Current;
-                    if(!cc) {
-                        return Lexer.EOF;
-                    }
-                    switch(cc) {
-                        case ';': {
-                            while(ch.moveNext() && ch.Current != '\n') {
-                                ; ;
-                            }
-                            if(_this.is_eof) {
-                                return;
-                            }
-                            break;
-
-                        }
-                        case '(':
-                        case ')':
-                        case '.':
-                        case '\'':
-                        case '`':
-                        case '~': {
-                            return cc;
-                            break;
-
-                        }
-                        case ',': {
-                            ch.moveNext();
-                            if(ch.Current == '@') {
-                                return ",@";
-                            } else {
-                                _this.state = "parsing_list";
-                                return ',';
-                            }
-                            break;
-
-                        }
-                        case '"': {
-                            return _this.getString(ch);
-                            break;
-
-                        }
-                        default: {
-                            _this.state = "parsing_list";
-                            var token = "";
-                            while(true) {
-                                token += cc;
-                                if(!ch.moveNext()) {
-                                    break;
-                                }
-                                cc = ch.Current;
-                                if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) {
-                                    break;
-                                }
-                            }
-                            if(token == "nil") {
-                                return null;
-                            } else {
-                                var nv = Lexer.tryToParseNumber(token);
-                                if(isNaN(nv)) {
-                                    if(Lexer.checkSymbol(token)) {
-                                        return TSLisp.Symbol.symbolOf(token);
-                                    } else {
-                                        return new SyntaxError("Bad token: " + TSLisp.LL.str(token));
-                                    }
-                                } else {
-                                    return nv;
-                                }
-                            }
-                            continue;
-
-                        }
-                    }
+                while(!_this.is_eof && Utils.isWhitespace(ch.Current)) {
                     ch.moveNext();
+                }
+                if(_this.is_eof) {
+                    return undefined;
+                }
+                var cc = ch.Current;
+                if(!cc) {
+                    return undefined;
+                }
+                switch(cc) {
+                    case ';': {
+                        while(ch.moveNext() && ch.Current != '\n') {
+                            ; ;
+                        }
+                        if(_this.is_eof) {
+                            return undefined;
+                        }
+                        break;
+
+                    }
+                    case '(':
+                    case ')':
+                    case '.':
+                    case '\'':
+                    case '`':
+                    case '~': {
+                        return cc;
+                        break;
+
+                    }
+                    case ',': {
+                        ch.moveNext();
+                        if(ch.Current == '@') {
+                            return ",@";
+                        } else {
+                            _this.state = "don't_move";
+                            return ',';
+                        }
+                        break;
+
+                    }
+                    case '"': {
+                        return _this.getString(ch);
+                        break;
+
+                    }
+                    default: {
+                        _this.state = "don't_move";
+                        var token = "";
+                        while(true) {
+                            token += cc;
+                            if(!ch.moveNext()) {
+                                break;
+                            }
+                            cc = ch.Current;
+                            if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) {
+                                break;
+                            }
+                        }
+                        if(token == "nil") {
+                            return null;
+                        } else {
+                            var nv = Lexer.tryToParseNumber(token);
+                            if(isNaN(nv)) {
+                                if(Lexer.checkSymbol(token)) {
+                                    return TSLisp.Symbol.symbolOf(token);
+                                } else {
+                                    return new SyntaxError("Bad token: " + TSLisp.LL.str(token));
+                                }
+                            } else {
+                                return nv;
+                            }
+                        }
+
+                    }
                 }
             });
         };
@@ -420,9 +449,9 @@ var TSLisp;
         function expand(x) {
             if(x instanceof TSLisp.Cell) {
                 var t = QQ.expand1(x);
-                if(t.Cdr == null) {
-                    var k = t.Car;
-                    if(k instanceof TSLisp.Cell && k.Car == TSLisp.LL.S_LIST || k.Car == TSLisp.LL.S_CONS) {
+                if(t.cdr == null) {
+                    var k = t.car;
+                    if(k instanceof TSLisp.Cell && k.car == TSLisp.LL.S_LIST || k.car == TSLisp.LL.S_CONS) {
                         return k;
                     }
                 }
@@ -447,26 +476,26 @@ var TSLisp;
         function expand1(x) {
             if(x instanceof TSLisp.Cell) {
                 var xc = x;
-                var h = QQ.expand2(xc.Car);
-                var t = QQ.expand1(xc.Cdr);
+                var h = QQ.expand2(xc.car);
+                var t = QQ.expand1(xc.cdr);
                 if(t instanceof TSLisp.Cell) {
                     var tc = t;
-                    if(tc.Car == null && tc.Cdr == null) {
+                    if(tc.car == null && tc.cdr == null) {
                         return TSLisp.LL.list(h);
                     } else {
                         if(h instanceof TSLisp.Cell) {
                             var hc = h;
-                            if(hc.Car == TSLisp.LL.S_LIST) {
-                                if(tc.Car instanceof TSLisp.Cell) {
-                                    var t_car = tc.Car;
-                                    if(t_car.Car == TSLisp.LL.S_LIST) {
-                                        var hh = QQ.concat(hc, t_car.Cdr);
-                                        return new TSLisp.Cell(hh, tc.Cdr);
+                            if(hc.car == TSLisp.LL.S_LIST) {
+                                if(tc.car instanceof TSLisp.Cell) {
+                                    var t_car = tc.car;
+                                    if(t_car.car == TSLisp.LL.S_LIST) {
+                                        var hh = QQ.concat(hc, t_car.cdr);
+                                        return new TSLisp.Cell(hh, tc.cdr);
                                     }
                                 }
-                                if(hc.Cdr instanceof TSLisp.Cell) {
-                                    var hh2 = QQ.consCons(hc.Cdr, tc.Car);
-                                    return new TSLisp.Cell(hh2, tc.Cdr);
+                                if(hc.cdr instanceof TSLisp.Cell) {
+                                    var hh2 = QQ.consCons(hc.cdr, tc.car);
+                                    return new TSLisp.Cell(hh2, tc.cdr);
                                 }
                             }
                         }
@@ -486,7 +515,7 @@ var TSLisp;
             if(x == null) {
                 return y;
             } else {
-                return new TSLisp.Cell(x.Car, QQ.concat(x.Cdr, y));
+                return new TSLisp.Cell(x.car, QQ.concat(x.cdr, y));
             }
         }
         QQ.concat = concat;
@@ -494,7 +523,7 @@ var TSLisp;
             if(x == null) {
                 return y;
             } else {
-                return TSLisp.LL.list(TSLisp.LL.S_CONS, x.Car, QQ.consCons(x.Cdr, y));
+                return TSLisp.LL.list(TSLisp.LL.S_CONS, x.car, QQ.consCons(x.cdr, y));
             }
         }
         QQ.consCons = consCons;

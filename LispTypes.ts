@@ -170,7 +170,7 @@ module TSLisp
         public static mapCar(fn : (x) => any, args : Common.IEnumerable)
         {
             if(!fn)
-                throw new Error("Null function");
+                throw new TypeError("Null function");
             
             if(args == null)
                 return null;
@@ -420,13 +420,13 @@ module TSLisp
         public setValue(x : any, env : Cell)
         {
             for(var i = 0; i < this.level; ++i) env = x.cdr;
-            env.car[this.offset] = x;
+            env.car.update(this.offset, x);
         }
 
         public getValue(env : Cell)
         {
             for(var i = 0; i < this.level; ++i) env = env.cdr;
-            return env.car[this.offset];
+            return env.car.get(this.offset);
         }
     }
 

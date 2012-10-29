@@ -30,7 +30,7 @@ var Common;
                     _this.buffer = "";
                     return tmp;
                 } else {
-                    return null;
+                    return undefined;
                 }
             });
         };

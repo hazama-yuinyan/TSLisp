@@ -45,29 +45,37 @@ module TSLisp
             this.symbols.add(Symbol.symbolOf("*version*"), LL.list(LL.Version, "TypeScript"));
             this.symbols.add(Symbol.symbolOf("*eof*"), LL.S_EOF);
 
-            var read_func_obj = {body : this.reader.read, help_msg : "(read) : reads an S expression from the standard input"};
+            var read_func_obj = new LispFunction(this.reader.read, "(read) : reads an S expression from the standard input", false, false);
             this.symbols.add(Symbol.symbolOf("read"), read_func_obj);
             var list_func = LL.listFrom;
-            var list_func_obj = {body : list_func, help_msg : "(list a b c ...) => (a b c ...)"};
+            var list_func_obj = new LispFunction(list_func, "(list a b c ...) => (a b c ...)", false, true);
             this.symbols.add(LL.S_LIST, list_func_obj);
             this.lazy.add(list_func, true);
         }
 
-        public run()
+        public run(lines? : Common.IEnumerable)
         {
+            if(!lines) lines = Common.HtmlConsole.instance();
+
+            var interactive = lines instanceof Common.HtmlConsole;
+            var rr = new Reader(lines);
             var result = null;
-            //while(true){
+            while(true){
                 try{
-                	var lisp_obj = this.reader.read();
+                	var lisp_obj = rr.read();
                 	if(lisp_obj == LL.S_EOF) return result;
 
                     result = this.evaluate(lisp_obj, false);
-                    Common.HtmlConsole.println(LL.str(result));
+                    if(interactive)
+                        Common.HtmlConsole.println(LL.str(result));
                 }
                 catch(ex){
-                    Common.HtmlConsole.println(ex.message);
+                    if(interactive)
+                        Common.HtmlConsole.println(ex.message);
+                    else
+                        throw ex;
                 }
-            //}
+            }
         }
 
         /**
@@ -156,11 +164,11 @@ module TSLisp
                         }else if(fn == LL.S_UNWIND_PROTECT){
                             //return this.evalUnwindProtect(xc);
                         }else if(fn == LL.S_DELAY){
-                            /*var kdr = <Cell>xc.cdr;
+                            var kdr = <Cell>xc.cdr;
                             if(kdr == null || kdr.cdr != null)
                                 throw new EvalException("Bad delay!");
 
-                            return new Promise(kdr.car, this.environ, this);*/
+                            return new Promise(kdr.car, this.environ, this);
                         }else{
                             var arg_list : Cell = <Cell>xc.cdr;
                             if(!(arg_list instanceof Cell) && xc.cdr != null)
@@ -183,7 +191,7 @@ module TSLisp
                                 this.applyDefined(<Macro>fn, args, false, tmp);
                                 x = tmp[0];
                             }else{
-                                return this.callNative(fn, arg_list, !this.lazy.contains(fn));
+                                return this.callNative(fn, arg_list, !this.lazy.contains(fn.body));
                             }
                         }
                     }else if(x instanceof Lambda){
@@ -571,7 +579,7 @@ module TSLisp
                 }else if(k == LL.S_MACRO){
                     throw new EvalException("Nested macro", j);
                 }else{
-                    LL.mapCar(this.compileInners, jc);
+                    return LL.mapCar((x) => this.compileInners(x), jc);
                 }
             }else{
                 return j;

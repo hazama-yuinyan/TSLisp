@@ -36,7 +36,7 @@ module Common{
 					this.buffer = "";
 					return tmp;
 				}else{
-					return null;
+					return undefined;
 				}
 			});
 		}

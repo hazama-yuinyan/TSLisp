@@ -253,6 +253,7 @@ module Common
 		constructor(args?)
 		{
 			if(args instanceof Common.Enumerator){
+				this.contents = [];
 				while(args.moveNext()){
 					this.contents.push(args.Current);
 				}
@@ -309,6 +310,29 @@ module Common
 			return new Common.Enumerator(() => {
 				if(cur_pos < this.contents.length){
 					return this.contents[cur_pos++];
+				}
+			});
+		}
+	}
+
+	export class StringReader implements IEnumerable
+	{
+		private buffer : string;
+
+		constructor(buffer : string)
+		{
+			this.buffer = buffer;
+		}
+
+		public getEnumerator() : Enumerator
+		{
+			var lines = this.buffer.split(/\n/);
+			var cur_pos = 0;
+			return new Enumerator(() => {
+				if(cur_pos < lines.length){
+					return lines[cur_pos++];
+				}else{
+					return undefined;
 				}
 			});
 		}

@@ -158,7 +158,7 @@ var TSLisp;
         }
         LL.mapCar = function mapCar(fn, args) {
             if(!fn) {
-                throw new Error("Null function");
+                throw new TypeError("Null function");
             }
             if(args == null) {
                 return null;
@@ -409,13 +409,13 @@ var TSLisp;
             for(var i = 0; i < this.level; ++i) {
                 env = x.cdr;
             }
-            env.car[this.offset] = x;
+            env.car.update(this.offset, x);
         };
         Arg.prototype.getValue = function (env) {
             for(var i = 0; i < this.level; ++i) {
                 env = env.cdr;
             }
-            return env.car[this.offset];
+            return env.car.get(this.offset);
         };
         return Arg;
     })();

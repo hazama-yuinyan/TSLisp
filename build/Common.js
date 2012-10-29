@@ -167,6 +167,7 @@ var Common;
     var List = (function () {
         function List(args) {
             if(args instanceof Common.Enumerator) {
+                this.contents = [];
                 while(args.moveNext()) {
                     this.contents.push(args.Current);
                 }
@@ -217,6 +218,24 @@ var Common;
         return List;
     })();
     Common.List = List;    
+    var StringReader = (function () {
+        function StringReader(buffer) {
+            this.buffer = buffer;
+        }
+        StringReader.prototype.getEnumerator = function () {
+            var lines = this.buffer.split(/\n/);
+            var cur_pos = 0;
+            return new Enumerator(function () {
+                if(cur_pos < lines.length) {
+                    return lines[cur_pos++];
+                } else {
+                    return undefined;
+                }
+            });
+        };
+        return StringReader;
+    })();
+    Common.StringReader = StringReader;    
     function take(count, er) {
         var i = 0;
         return new Common.Enumerator(function () {

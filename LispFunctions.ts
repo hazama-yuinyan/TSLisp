@@ -54,7 +54,7 @@ module TSLisp
 			help_msg : "(eq x y) => t; if x and y refer to the same object, otherwise nil"
 		},
 		{
-			stringP : function(x){
+			stringp : function(x){
 				return (typeof x === "string") ? LL.S_T : null;
 			},
 			is_lazy : false,
@@ -66,15 +66,15 @@ module TSLisp
 				return x;
 			},
 			is_lazy : false,
-			help_msg : "(prin1 x) : print x(if x is a string then double-quote it)"
+			help_msg : "(print1 x) : print x(if x is a string then double-quote it)"
 		},
 		{
-			princ : function(x){
+			printc : function(x){
 				Common.HtmlConsole.print(LL.str(x, false));
 				return x;
 			},
 			is_lazy : false,
-			help_msg : "(princ x) : just print x as it is(so strings won't be double-quoted)"
+			help_msg : "(printc x) : just print x as it is(so strings won't be double-quoted)"
 		},
 		{
 			terpri : function(){
@@ -355,14 +355,14 @@ module TSLisp
 		"* In the form (macro ...), symbols beginning with '$' are cosidered to be dummy symbols.\n" +
 		"  Dummy symbols are self-evaluating and the \"eq\" function returns t only when it is called in the macro.\n" +
 		"* C-like escape sequences(such as \"\\n\") can be used in the string literal.\n" +
-		"* The back-quotes, commas and comma-ats are resolbed when reading.\n" +
+		"* The back-quotes, commas and comma-ats are resolved when reading.\n" +
 		"  e.g. \"'`((,a b) ,c ,@d)\" => \"(cons (list a 'b) (cons c d))\"\n" +
 		"* Native functions can have optional parameters like the built-in function \"help\" only if they take, at most, two parameters.\n\n"
 		"Special forms:\n" +
 		"quote, progn, cond, setq, lambda, macro, delay\n" +
 		"Built-in functions:\n" +
 		"car, cdr, cons, atom, numberp, stringp, eq, eql, list\n" +
-		"prin1, princ, terpri, read, +, -, *, /, %, <\n" +
+		"print1, printc, terpri, read, +, -, *, /, %, <\n" +
 		"eval, apply, force, replaca, replacd, throw, mapcar, mapc, length\n" +
 		"ts-self\n" +
 		"dump, help\n" +

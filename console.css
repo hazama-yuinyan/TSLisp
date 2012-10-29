@@ -1,5 +1,8 @@
+body{
+	background-color: #3a0027;
+}
+
 #console{
-	background-color: purple;
 	color: white;
 	font-size: large;
 	font-family: serif;
