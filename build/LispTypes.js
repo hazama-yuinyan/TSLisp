@@ -126,20 +126,21 @@ var TSLisp;
                 args[_i] = arguments[_i + 0];
             }
             var i = 0;
-            return LL.listFrom(new Common.Enumerator(function () {
+            return LL.listFrom(new Common.EnumeratorStore(new Common.Enumerator(function () {
                 if(i < args.length) {
                     return args[i++];
                 }
-            }));
+            })));
         }
         LL.listFrom = function listFrom(args) {
             if(!args) {
                 return null;
             }
+            var er = args.getEnumerator();
             var z = null;
             var y = null;
-            while(args.moveNext()) {
-                var x = new Cell(args.Current, null);
+            while(er.moveNext()) {
+                var x = new Cell(er.Current, null);
                 if(!z) {
                     z = x;
                 } else {

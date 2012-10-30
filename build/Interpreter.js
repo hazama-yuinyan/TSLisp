@@ -4,7 +4,7 @@ var TSLisp;
         function Interpreter() {
             this.environ = null;
             Common.HtmlConsole.initialize();
-            Common.HtmlConsole.println("Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript." + "\n\nCall the help function for more info on ts_lisp.");
+            Common.HtmlConsole.println("Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript." + "\n\nCall the help function for more info on TSLisp.");
             this.symbols = new Common.HashTable(1000, function (key) {
                 return Utils.getHashCodeFor(key);
             }, function (lhs, rhs) {
@@ -116,7 +116,9 @@ var TSLisp;
                     }
                 }
                 _this.symbols.add(TSLisp.Symbol.symbolOf(name), func_obj);
-                _this.lazy.add(func_obj.body, is_lazy);
+                if(is_lazy) {
+                    _this.lazy.add(func_obj.body, is_lazy);
+                }
             });
         };
         Interpreter.prototype.evaluate = function (x, canLoseEnviron) {
@@ -454,7 +456,7 @@ var TSLisp;
                     }
                     default: {
                         var args = this.getArgs(argList, willForce);
-                        return func(args.getEnumerator());
+                        return func(args);
 
                     }
                 }

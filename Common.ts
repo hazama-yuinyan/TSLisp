@@ -252,10 +252,11 @@ module Common
 		 */
 		constructor(args?)
 		{
-			if(args instanceof Common.Enumerator){
+			if(args && (args instanceof Enumerator || args.getEnumerator)){
+				var er = args.getEnumerator && args.getEnumerator() || args;
 				this.contents = [];
-				while(args.moveNext()){
-					this.contents.push(args.Current);
+				while(er.moveNext()){
+					this.contents.push(er.Current);
 				}
 			}else if(args instanceof Array){
 				this.contents = args;
@@ -339,26 +340,48 @@ module Common
 	}
 
 	/**
+	 * This class temporalily stores an enumerator.
+	 */
+	export class EnumeratorStore implements IEnumerable
+	{
+		private enumerator : Enumerator;
+
+		constructor(enumerator : Enumerator)
+		{
+			this.enumerator = enumerator;
+		}
+
+		public getEnumerator() : Enumerator
+		{
+			return this.enumerator;
+		}
+	}
+
+	/**
 	 * Advances an enumerator a cetain times.
 	 */
-	export function take(count : number, er : Common.Enumerator) : Common.Enumerator
+	export function take(count : number, er : Common.Enumerator) : EnumeratorStore
     {
         var i = 0;
-        return new Common.Enumerator(() => {
-            if(i < count && er.moveNext()){
-                ++i;
-                return er.Current;
-            }
-        });
+        return new EnumeratorStore(
+        	new Common.Enumerator(() => {
+	           	if(i < count && er.moveNext()){
+	           	     ++i;
+	                return er.Current;
+	            }
+	        })
+	    );
     }
 
     /**
      * Advances an enumerator to the end.
      */
-    export function takeAll(er : Common.Enumerator) : Common.Enumerator
+    export function takeAll(er : Common.Enumerator) : EnumeratorStore
     {
-    	return new Common.Enumerator(() => {
-    		if(er.moveNext()) return er.Current;
-    	});
+    	return new EnumeratorStore(
+    		new Common.Enumerator(() => {
+    	    	if(er.moveNext()) return er.Current;
+    	    })
+    	);
     }
 }

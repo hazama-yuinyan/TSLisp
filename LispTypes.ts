@@ -125,23 +125,28 @@ module TSLisp
         public static list(... args : Object[]) : Cell
         {
             var i = 0;
-            return LL.listFrom(new Common.Enumerator(() => {
-                if(i < args.length){
-                    return args[i++];
-                }
-            }));
+            return LL.listFrom(
+                new Common.EnumeratorStore(
+                    new Common.Enumerator(() => {
+                        if(i < args.length)
+                            return args[i++];
+                        }
+                    )
+                )
+            );
         }
 
         /**
          * Takes an enumerator and returns them as a Lisp list.
          */
-        public static listFrom(args : Common.Enumerator) : Cell
+        public static listFrom(args : Common.IEnumerable) : Cell
         {
             if(!args) return null;
 
+            var er = args.getEnumerator();
             var z : Cell = null; var y : Cell = null;
-            while(args.moveNext()){
-                var x : Cell = new Cell(args.Current, null);
+            while(er.moveNext()){
+                var x : Cell = new Cell(er.Current, null);
                 if(!z)
                     z = x;
                 else

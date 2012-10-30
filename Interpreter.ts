@@ -29,7 +29,7 @@ module TSLisp
         {
             Common.HtmlConsole.initialize();
             Common.HtmlConsole.println("Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript." +
-                "\n\nCall the help function for more info on ts_lisp.");
+                "\n\nCall the help function for more info on TSLisp.");
             this.symbols = new Common.HashTable(1000, 
                 (key) => Utils.getHashCodeFor(key),
                 (lhs, rhs) => lhs == rhs
@@ -117,7 +117,8 @@ module TSLisp
                 }
 
                 this.symbols.add(Symbol.symbolOf(name), func_obj);
-                this.lazy.add(func_obj.body, is_lazy);
+                if(is_lazy)
+                    this.lazy.add(func_obj.body, is_lazy);
             });
         }
 
@@ -355,7 +356,7 @@ module TSLisp
                 if(lval instanceof Symbol)
                     this.symbols.add(lval, result);
                 else if(lval instanceof Arg)
-                    <Arg>(lval).setValue(result, this.environ);
+                    (<Arg> lval).setValue(result, this.environ);
                 else
                     throw new VariableExpected(lval);
             }
@@ -421,7 +422,7 @@ module TSLisp
 
                 default:
                     var args = this.getArgs(argList, willForce);
-                    return func(args.getEnumerator());
+                    return func(args);
                 }
             }
             catch(ex){
@@ -435,7 +436,7 @@ module TSLisp
         {
             var x = this.evaluate(arg, false);
             if(willForce && x instanceof Promise)
-                x = <Promise>(x).resolve();
+                x = (<Promise> x).resolve();
 
             return x;
         }

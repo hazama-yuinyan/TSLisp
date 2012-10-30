@@ -298,7 +298,7 @@ module TSLisp
 		},
 		{
 			dump : function(){
-				var keys = LL.listFrom(new Common.List(interp.SymbolTable.Keys).getEnumerator());
+				var keys = LL.listFrom(new Common.List(interp.SymbolTable.Keys));
 				return LL.list(keys, interp.Environment);
 			},
 			is_lazy : false,
@@ -357,7 +357,7 @@ module TSLisp
 		"* C-like escape sequences(such as \"\\n\") can be used in the string literal.\n" +
 		"* The back-quotes, commas and comma-ats are resolved when reading.\n" +
 		"  e.g. \"'`((,a b) ,c ,@d)\" => \"(cons (list a 'b) (cons c d))\"\n" +
-		"* Native functions can have optional parameters like the built-in function \"help\" only if they take, at most, two parameters.\n\n"
+		"* Native functions can have optional parameters like the built-in function \"help\" only if they take, at most, two parameters.\n\n" +
 		"Special forms:\n" +
 		"quote, progn, cond, setq, lambda, macro, delay\n" +
 		"Built-in functions:\n" +

@@ -166,10 +166,11 @@ var Common;
     Common.HashTable = HashTable;    
     var List = (function () {
         function List(args) {
-            if(args instanceof Common.Enumerator) {
+            if(args && (args instanceof Enumerator || args.getEnumerator)) {
+                var er = args.getEnumerator && args.getEnumerator() || args;
                 this.contents = [];
-                while(args.moveNext()) {
-                    this.contents.push(args.Current);
+                while(er.moveNext()) {
+                    this.contents.push(er.Current);
                 }
             } else {
                 if(args instanceof Array) {
@@ -236,22 +237,32 @@ var Common;
         return StringReader;
     })();
     Common.StringReader = StringReader;    
+    var EnumeratorStore = (function () {
+        function EnumeratorStore(enumerator) {
+            this.enumerator = enumerator;
+        }
+        EnumeratorStore.prototype.getEnumerator = function () {
+            return this.enumerator;
+        };
+        return EnumeratorStore;
+    })();
+    Common.EnumeratorStore = EnumeratorStore;    
     function take(count, er) {
         var i = 0;
-        return new Common.Enumerator(function () {
+        return new EnumeratorStore(new Common.Enumerator(function () {
             if(i < count && er.moveNext()) {
                 ++i;
                 return er.Current;
             }
-        });
+        }));
     }
     Common.take = take;
     function takeAll(er) {
-        return new Common.Enumerator(function () {
+        return new EnumeratorStore(new Common.Enumerator(function () {
             if(er.moveNext()) {
                 return er.Current;
             }
-        });
+        }));
     }
     Common.takeAll = takeAll;
 })(Common || (Common = {}));
