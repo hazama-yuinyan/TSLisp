@@ -148,7 +148,7 @@ var TSLisp;
                                             if(this.evalCond(tmp)) {
                                                 return tmp[1];
                                             } else {
-                                                x = tmp[0];
+                                                x = tmp[1];
                                             }
                                         } else {
                                             if(fn == TSLisp.LL.S_SETQ) {
@@ -345,7 +345,7 @@ var TSLisp;
                         throw new TSLisp.EvalException("Not any test clause found in cond", clause);
                     }
                 }
-                body = bc.car;
+                body = bc.cdr;
             }
             if(body != null) {
                 throw new TSLisp.ProperListExpected(xc);
@@ -454,7 +454,7 @@ var TSLisp;
                     }
                     default: {
                         var args = this.getArgs(argList, willForce);
-                        return func(args);
+                        return func(args.getEnumerator());
 
                     }
                 }
@@ -589,7 +589,7 @@ var TSLisp;
                 var jc = j;
                 var k = jc.car;
                 if(k == TSLisp.LL.S_QUOTE) {
-                    return k;
+                    return j;
                 } else {
                     if(k == TSLisp.LL.S_LAMBDA) {
                         var compiled = this.compile(j);

@@ -190,82 +190,85 @@ var TSLisp;
                         _this.state = "full";
                     }
                 }
-                while(!_this.is_eof && Utils.isWhitespace(ch.Current)) {
-                    ch.moveNext();
-                }
-                if(_this.is_eof) {
-                    return undefined;
-                }
-                var cc = ch.Current;
-                if(!cc) {
-                    return undefined;
-                }
-                switch(cc) {
-                    case ';': {
-                        while(ch.moveNext() && ch.Current != '\n') {
-                            ; ;
-                        }
-                        if(_this.is_eof) {
-                            return undefined;
-                        }
-                        break;
-
-                    }
-                    case '(':
-                    case ')':
-                    case '.':
-                    case '\'':
-                    case '`':
-                    case '~': {
-                        return cc;
-                        break;
-
-                    }
-                    case ',': {
+                while(true) {
+                    while(!_this.is_eof && Utils.isWhitespace(ch.Current)) {
                         ch.moveNext();
-                        if(ch.Current == '@') {
-                            return ",@";
-                        } else {
-                            _this.state = "don't_move";
-                            return ',';
-                        }
-                        break;
-
                     }
-                    case '"': {
-                        return _this.getString(ch);
-                        break;
-
+                    if(_this.is_eof) {
+                        return undefined;
                     }
-                    default: {
-                        _this.state = "don't_move";
-                        var token = "";
-                        while(true) {
-                            token += cc;
-                            if(!ch.moveNext()) {
-                                break;
+                    var cc = ch.Current;
+                    if(!cc) {
+                        return undefined;
+                    }
+                    switch(cc) {
+                        case ';': {
+                            while(ch.moveNext() && ch.Current != '\n') {
+                                ; ;
                             }
-                            cc = ch.Current;
-                            if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) {
-                                break;
+                            if(_this.is_eof) {
+                                return undefined;
                             }
+                            break;
+
                         }
-                        if(token == "nil") {
-                            return null;
-                        } else {
-                            var nv = Lexer.tryToParseNumber(token);
-                            if(isNaN(nv)) {
-                                if(Lexer.checkSymbol(token)) {
-                                    return TSLisp.Symbol.symbolOf(token);
-                                } else {
-                                    return new SyntaxError("Bad token: " + TSLisp.LL.str(token));
-                                }
+                        case '(':
+                        case ')':
+                        case '.':
+                        case '\'':
+                        case '`':
+                        case '~': {
+                            return cc;
+                            break;
+
+                        }
+                        case ',': {
+                            ch.moveNext();
+                            if(ch.Current == '@') {
+                                return ",@";
                             } else {
-                                return nv;
+                                _this.state = "don't_move";
+                                return ',';
                             }
-                        }
+                            break;
 
+                        }
+                        case '"': {
+                            return _this.getString(ch);
+                            break;
+
+                        }
+                        default: {
+                            _this.state = "don't_move";
+                            var token = "";
+                            while(true) {
+                                token += cc;
+                                if(!ch.moveNext()) {
+                                    break;
+                                }
+                                cc = ch.Current;
+                                if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) {
+                                    break;
+                                }
+                            }
+                            if(token == "nil") {
+                                return null;
+                            } else {
+                                var nv = Lexer.tryToParseNumber(token);
+                                if(isNaN(nv)) {
+                                    if(Lexer.checkSymbol(token)) {
+                                        return TSLisp.Symbol.symbolOf(token);
+                                    } else {
+                                        return new SyntaxError("Bad token: " + TSLisp.LL.str(token));
+                                    }
+                                } else {
+                                    return nv;
+                                }
+                            }
+
+                        }
                     }
+                    ch.moveNext();
                 }
             });
         };
@@ -449,9 +452,9 @@ var TSLisp;
         function expand(x) {
             if(x instanceof TSLisp.Cell) {
                 var t = QQ.expand1(x);
-                if(t.cdr == null) {
+                if(t.cdr === null) {
                     var k = t.car;
-                    if(k instanceof TSLisp.Cell && k.car == TSLisp.LL.S_LIST || k.car == TSLisp.LL.S_CONS) {
+                    if(k instanceof TSLisp.Cell && (k.car == TSLisp.LL.S_LIST || k.car == TSLisp.LL.S_CONS)) {
                         return k;
                     }
                 }
@@ -480,7 +483,7 @@ var TSLisp;
                 var t = QQ.expand1(xc.cdr);
                 if(t instanceof TSLisp.Cell) {
                     var tc = t;
-                    if(tc.car == null && tc.cdr == null) {
+                    if(tc.car === null && tc.cdr === null) {
                         return TSLisp.LL.list(h);
                     } else {
                         if(h instanceof TSLisp.Cell) {
@@ -494,7 +497,7 @@ var TSLisp;
                                     }
                                 }
                                 if(hc.cdr instanceof TSLisp.Cell) {
-                                    var hh2 = QQ.consCons(hc.cdr, tc.car);
+                                    var hh2 = QQ.consCons((hc).cdr, tc.car);
                                     return new TSLisp.Cell(hh2, tc.cdr);
                                 }
                             }
@@ -512,18 +515,18 @@ var TSLisp;
         }
         QQ.expand1 = expand1;
         function concat(x, y) {
-            if(x == null) {
+            if(x === null) {
                 return y;
             } else {
-                return new TSLisp.Cell(x.car, QQ.concat(x.cdr, y));
+                return new TSLisp.Cell(x.car, QQ.concat((x).cdr, y));
             }
         }
         QQ.concat = concat;
         function consCons(x, y) {
-            if(x == null) {
+            if(x === null) {
                 return y;
             } else {
-                return TSLisp.LL.list(TSLisp.LL.S_CONS, x.car, QQ.consCons(x.cdr, y));
+                return TSLisp.LL.list(TSLisp.LL.S_CONS, x.car, QQ.consCons((x).cdr, y));
             }
         }
         QQ.consCons = consCons;

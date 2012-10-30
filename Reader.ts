@@ -204,65 +204,68 @@ module TSLisp
                         this.state = "full";
                 }
 
-                while(!this.is_eof && Utils.isWhitespace(ch.Current)) ch.moveNext();  //skip whitespace characters
-                if(this.is_eof) return undefined;
-
-                var cc = ch.Current;
-                if(!cc) return undefined;
-
-                switch(cc){
-                case ';':
-                    while(ch.moveNext() && ch.Current != '\n') ;
+                while(true){
+                    while(!this.is_eof && Utils.isWhitespace(ch.Current)) ch.moveNext();  //skip whitespace characters
                     if(this.is_eof) return undefined;
-                    break;
 
-                case '(':
-                case ')':
-                case '.':
-                case '\'':
-                case '`':
-                case '~':
-                    return cc;
-                    break;
+                    var cc = ch.Current;
+                    if(!cc) return undefined;
 
-                case ',':
-                    ch.moveNext();
-                    if(ch.Current == '@'){
-                        return ",@";
-                    }else{
-                        this.state = "don't_move";
-                        return ',';
-                    }
-                    break;
+                    switch(cc){
+                    case ';':
+                        while(ch.moveNext() && ch.Current != '\n') ;
+                        if(this.is_eof) return undefined;
+                        break;
 
-                case '"':
-                    return this.getString(ch);
-                    break;
+                    case '(':
+                    case ')':
+                    case '.':
+                    case '\'':
+                    case '`':
+                    case '~':
+                        return cc;
+                        break;
 
-                default:
-                    this.state = "don't_move";
-                    var token = "";
-                    while(true){
-                        token += cc;
-                        if(!ch.moveNext()) break;
-
-                        cc = ch.Current;
-                        if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) break;
-                    }
-
-                    if(token == "nil"){
-                        return null;
-                    }else{
-                        var nv = Lexer.tryToParseNumber(token);
-                        if(isNaN(nv)){
-                            if(Lexer.checkSymbol(token))
-                                return Symbol.symbolOf(token);
-                            else
-                                return new SyntaxError("Bad token: " + LL.str(token));
+                    case ',':
+                        ch.moveNext();
+                        if(ch.Current == '@'){
+                            return ",@";
                         }else{
-                            return nv;
+                            this.state = "don't_move";
+                            return ',';
+                        }
+                        break;
+
+                    case '"':
+                        return this.getString(ch);
+                        break;
+
+                    default:
+                        this.state = "don't_move";
+                        var token = "";
+                        while(true){
+                            token += cc;
+                            if(!ch.moveNext()) break;
+
+                            cc = ch.Current;
+                            if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) break;
+                        }
+
+                        if(token == "nil"){
+                            return null;
+                        }else{
+                            var nv = Lexer.tryToParseNumber(token);
+                            if(isNaN(nv)){
+                                if(Lexer.checkSymbol(token))
+                                    return Symbol.symbolOf(token);
+                                else
+                                    return new SyntaxError("Bad token: " + LL.str(token));
+                            }else{
+                                return nv;
+                            }
                         }
                     }
+                    ch.moveNext();
                 }
             });
         }
@@ -425,15 +428,15 @@ module TSLisp
         {
             if(x instanceof Cell){
                 var t : Cell = QQ.expand1(x);
-                if(t.cdr == null){
+                if(t.cdr === null){
                     var k = <Cell>t.car;
-                    if(k instanceof Cell && k.car == LL.S_LIST || k.car == LL.S_CONS)
+                    if(k instanceof Cell && (k.car == LL.S_LIST || k.car == LL.S_CONS))
                         return k;
                 }
 
                 return new Cell(LL.S_APPEND, t);
             }else if(x instanceof QQ.Unquote)
-                return <Unquote>(x).x;
+                return (<Unquote> x).x;
             else
                 return QQ.quote(x);
         }
@@ -456,7 +459,7 @@ module TSLisp
                 if(t instanceof Cell){
                     var tc : Cell = <Cell>t;
 
-                    if(tc.car == null && tc.cdr == null)
+                    if(tc.car === null && tc.cdr === null)
                         return LL.list(h);
                     else if(h instanceof Cell){
                         var hc : Cell = <Cell>h;
@@ -472,7 +475,7 @@ module TSLisp
                             }
 
                             if(hc.cdr instanceof Cell){
-                                var hh2 = QQ.consCons(<Cell>hc.cdr, tc.car);
+                                var hh2 = QQ.consCons((<Cell> hc).cdr, tc.car);
                                 return new Cell(hh2, tc.cdr);
                             }
                         }
@@ -488,26 +491,26 @@ module TSLisp
 
         export function concat(x : Cell, y : any)
         {
-            if(x == null)
+            if(x === null)
                 return y;
             else
-                return new Cell(x.car, QQ.concat(<Cell>x.cdr, y));
+                return new Cell(x.car, QQ.concat((<Cell> x).cdr, y));
         }
 
         export function consCons(x : Cell, y : any)
         {
-            if(x == null)
+            if(x === null)
                 return y;
             else
-                return LL.list(LL.S_CONS, x.car, QQ.consCons(<Cell>x.cdr, y));
+                return LL.list(LL.S_CONS, x.car, QQ.consCons((<Cell> x).cdr, y));
         }
 
         export function expand2(x) : any
         {
             if(x instanceof Unquote)
-                return LL.list(LL.S_LIST, <Unquote>(x).x);
+                return LL.list(LL.S_LIST, (<Unquote> x).x);
             else if(x instanceof UnquoteSplicing)
-                return <UnquoteSplicing>(x).x;
+                return (<UnquoteSplicing> x).x;
             else
                 return LL.list(LL.S_LIST, QQ.expand(x));
         }

@@ -146,7 +146,7 @@ module TSLisp
                             if(this.evalCond(tmp))
                                 return tmp[1];
                             else
-                                x = tmp[0];
+                                x = tmp[1];
                         }else if(fn == LL.S_SETQ){
                             return this.evalSetQ(xc);
                         }else if(fn == LL.S_LAMBDA){
@@ -294,11 +294,11 @@ module TSLisp
                     var result = this.evaluate(cc.car, false);
 
                     if(result instanceof Promise)
-                        <Promise>(result).resolve();
+                        (<Promise> result).resolve();
 
                     if(result != null){     //if the result is evaluated to true...
                         clause = cc.cdr;
-                        cc = <Cell>clause
+                        cc = <Cell>clause;
                         if(!(cc instanceof Cell)){
                             x[1] = result; //then the result becomes the return value
                             return true;
@@ -322,7 +322,7 @@ module TSLisp
                     throw new EvalException("Not any test clause found in cond", clause);
                 }
 
-                body = bc.car;
+                body = bc.cdr;
             }
 
             if(body != null)
@@ -421,7 +421,7 @@ module TSLisp
 
                 default:
                     var args = this.getArgs(argList, willForce);
-                    return func(args);
+                    return func(args.getEnumerator());
                 }
             }
             catch(ex){
@@ -572,7 +572,7 @@ module TSLisp
                 var jc : Cell = <Cell>j;
                 var k = jc.car;
                 if(k == LL.S_QUOTE){
-                    return k;
+                    return j;
                 }else if(k == LL.S_LAMBDA){
                     var compiled = this.compile(j);
                     return new Lambda(compiled.arity, compiled.x);
