@@ -408,7 +408,7 @@ var TSLisp;
         };
         Arg.prototype.setValue = function (x, env) {
             for(var i = 0; i < this.level; ++i) {
-                env = x.cdr;
+                env = env.cdr;
             }
             env.car.update(this.offset, x);
         };

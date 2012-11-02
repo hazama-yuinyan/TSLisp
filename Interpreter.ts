@@ -30,6 +30,7 @@ module TSLisp
             Common.HtmlConsole.initialize();
             Common.HtmlConsole.println("Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript." +
                 "\n\nCall the help function for more info on TSLisp.");
+            Common.HtmlConsole.instance().printPS();
             this.symbols = new Common.HashTable(1000, 
                 (key) => Utils.getHashCodeFor(key),
                 (lhs, rhs) => lhs == rhs
@@ -44,6 +45,9 @@ module TSLisp
             this.symbols.add(LL.S_T, LL.S_T);
             this.symbols.add(Symbol.symbolOf("*version*"), LL.list(LL.Version, "TypeScript"));
             this.symbols.add(Symbol.symbolOf("*eof*"), LL.S_EOF);
+
+            this.symbols.add(Symbol.symbolOf("*pi*"), Math.PI);
+            this.symbols.add(Symbol.symbolOf("*napier*"), Math.E);
 
             var read_func_obj = new LispFunction(this.reader.read, "(read) : reads an S expression from the standard input", false, false);
             this.symbols.add(Symbol.symbolOf("read"), read_func_obj);
@@ -63,7 +67,12 @@ module TSLisp
             while(true){
                 try{
                 	var lisp_obj = rr.read();
-                	if(lisp_obj == LL.S_EOF) return result;
+                	if(lisp_obj == LL.S_EOF){
+                        if(interactive)
+                            (<Common.HtmlConsole> lines).printPS();
+
+                        return result;
+                    }
 
                     result = this.evaluate(lisp_obj, false);
                     if(interactive)
@@ -219,9 +228,9 @@ module TSLisp
                 this.applyDefined(df, args, false, result);
                 return result[0];
             }else{
-                fn = fn.body;
+                var func = fn.body;
                 var count : number = args.getCount();
-                if(!this.lazy.contains(fn)){
+                if(!this.lazy.contains(func)){
                     for(var i = 0; i < count; ++i){
                         var e = args.get(i);
                         if(e instanceof Promise)
@@ -230,22 +239,23 @@ module TSLisp
                 }
 
                 var arg_names = Utils.getArgumentNamesFor(fn);
+                var has_optional = fn.has_optional;
                 var arity = (fn.accepts_variable_args) ? 3 : arg_names.length;
                 switch(arity){
                 case 0:
                     if(count !== 0) this.throwArgException(0, args);
-                    return fn();
+                    return func();
 
                 case 1:
-                    if(count !== 1) this.throwArgException(1, args);
-                    return fn(args.get(0));
+                    if(!has_optional && count !== 1) this.throwArgException(1, args);
+                    return func(args.get(0));
 
                 case 2:
-                    if(count !== 2) this.throwArgException(2, args);
-                    return fn(args.get(0), args.get(1));
+                    if(!has_optional && count !== 2) this.throwArgException(2, args);
+                    return func(args.get(0), args.get(1));
 
                 default:
-                    return fn(args);
+                    return func(args);
                 }
             }
         }

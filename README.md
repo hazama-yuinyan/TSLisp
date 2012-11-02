@@ -14,8 +14,8 @@ Since the Cell class implements IEnumerable interface, which is similar to the o
 * It'll always do tail call optimization.
 * The symbol '*version*' refers to a list whose car is the version number and cdr is the platform name
   on which it is running.
-* The subtract function '-' takes more than one arguments.
-* The divide function '/' takes more than two arguments.
+* The subtract function '-' can take more than one arguments.
+* The divide function '/' can take more than two arguments.
 * (delay x) constructs a Promise object as in Scheme, and it can be shortened to '~x'.
   The built-in functions and conditional expressions implicitly resolve them.
 * The (read) function returns a EOF symbol when it encounters EOF.
@@ -26,16 +26,18 @@ Since the Cell class implements IEnumerable interface, which is similar to the o
 * C-like escape sequences(such as "\n") can be used in the string literal.
 * The back-quotes, commas and comma-ats are resolved when reading.
   e.g. "'`((,a b) ,c ,@d)" => "(cons (list a 'b) (cons c d))"
-* Native functions can have optional parameters like the built-in function "help" only if they take, at most, two parameters.
+* Native functions can have optional parameters like the built-in function "help" does only if they take, at most, two parameters.
 
 ##Special forms
 `quote`, `progn`, `cond`, `setq`, `lambda`, `macro`, `delay`
 ##Built-in functions
 `car`, `cdr`, `cons`, `atom`, `numberp`, `stringp`, `eq`, `eql`, `list`
-`print1`, `printc`, `terpri`, `read`, `+`, `-`, `*`, `/`, `%`, `<`
+`prin1`, `princ`, `terpri`, `read`, `+`, `-`, `*`, `/`, `%`, `<`
 `eval`, `apply`, `force`, `replaca`, `replacd`, `throw`, `mapcar`, `mapc`, `length`
 `ts-self`
-`dump`, `help`
+`dump`, `help`, `load-sample`
+`abs`, `acos`, `asin`, `atan`, `ceil`, `cos`, `exp`, `floor`, `log`, `max`, `min`
+`pow`, `random`, `round`, `sin`, `sqrt`, `tan`, `radians-to-degrees`, `degrees-to-radians`
 ##Predefined variables
 `*error*`, `*version*`, `*eof*`, `t`
 

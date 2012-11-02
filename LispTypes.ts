@@ -424,7 +424,7 @@ module TSLisp
 
         public setValue(x : any, env : Cell)
         {
-            for(var i = 0; i < this.level; ++i) env = x.cdr;
+            for(var i = 0; i < this.level; ++i) env = env.cdr;
             env.car.update(this.offset, x);
         }
 

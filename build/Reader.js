@@ -150,9 +150,6 @@ var TSLisp;
         Lexer.prototype.reset = function () {
             this.state = "eager";
             this.is_eof = false;
-            if(this.console_obj.reset) {
-                this.console_obj.reset();
-            }
         };
         Lexer.prototype.getEnumerator = function () {
             var _this = this;

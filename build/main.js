@@ -3,7 +3,7 @@
     interp.loadNatives();
     interp.run(TSLisp.Lines.fromString(TSLisp.PRELUDE));
     document.addEventListener("keyup", function (e) {
-        if(e.keyCode == 13) {
+        if(!e.shiftKey && e.keyCode == 13) {
             interp.run();
         }
     });

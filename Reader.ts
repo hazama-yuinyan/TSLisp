@@ -165,7 +165,7 @@ module TSLisp
     	{
     		this.state = "eager";
             this.is_eof = false;
-            if(this.console_obj.reset) this.console_obj.reset();
+            //if(this.console_obj.reset) this.console_obj.reset();
     	}
 
         public getEnumerator() : Common.Enumerator

@@ -1,5 +1,6 @@
 ///<reference path='Common.ts' />
 ///<reference path='WebHelpers.ts' />
+///<reference path='Snippets.ts' />
 
 
 
@@ -61,20 +62,20 @@ module TSLisp
 			help_msg : "(stringp x) => t; if x is a string, otherwise nil"
 		},
 		{
-			print1 : function(x){
+			prin1 : function(x){
 				Common.HtmlConsole.print(LL.str(x, true));
 				return x;
 			},
 			is_lazy : false,
-			help_msg : "(print1 x) : print x(if x is a string then double-quote it)"
+			help_msg : "(prin1 x) : print x(if x is a string then double-quote it)"
 		},
 		{
-			printc : function(x){
+			princ : function(x){
 				Common.HtmlConsole.print(LL.str(x, false));
 				return x;
 			},
 			is_lazy : false,
-			help_msg : "(printc x) : just print x as it is(so strings won't be double-quoted)"
+			help_msg : "(princ x) : just print x as it is(so strings won't be double-quoted)"
 		},
 		{
 			terpri : function(){
@@ -259,13 +260,13 @@ module TSLisp
 				return interp.apply(fn, LL.listFromTS(<Common.IEnumerable>(args)));
 			},
 			is_lazy : false,
-			help_msg : "(apply fn (a b c ...)) => (fn a b c ...)"
+			help_msg : "(apply fn (a b c ...)) => the result of (fn a b c ...)"
 		},
 		{
 			mapcar : function(fn, seq){
 				return LL.mapCar((x) => {
 					return interp.apply(fn, new Common.List([x]));
-				}, <Common.IEnumerable>(seq));
+				}, <Common.IEnumerable>seq);
 			},
 			is_lazy : false,
 			help_msg : "(mapcar fn (a b c ...)) => ((fn a) (fn b) (fn c) ...)"
@@ -288,6 +289,13 @@ module TSLisp
 			is_lazy : false,
 			accepts_variable_args : true,
 			help_msg : "(ts-get-property)"
+		},
+		{
+			"ts-set-property" : function(args : Common.IList){
+			},
+			is_lazy : false,
+			accepts_variable_args : true,
+			help_msg : "(ts-set-property)"
 		},
 		{
 			"ts-self" : function(){
@@ -326,7 +334,189 @@ module TSLisp
 			},
 			is_lazy : false,
 			has_optional : true,
-			help_msg : "(help [arg]) : print the help message when no args supplied and print the target function's help message."
+			help_msg : "(help [arg]) : print the help message when no args supplied or print the target function's help message when a symbol is passed"
+		},
+		{
+			"load-sample" : function(name){
+				if(typeof name !== "string") throw new EvalException("This function can not take arguments other than a string!");
+
+				name = name.toUpperCase();
+				var target = TSLisp[name];
+				if(target){
+					var old_env = interp.Environment;
+					interp.Environment = null;		//evaluate the sample code in the global scope
+					try{
+						return interp.run(Lines.fromString(target));
+					}
+					finally{
+						interp.Environment = old_env;
+					}
+				}
+			},
+			is_lazy : false,
+			help_msg : "(load-sample sample-name) : loads the specified sample and after that, those functions which are contained in the sample can be used\n" +
+						"Currently the sample-name can be \"PRIMES\" or \"FIBS\""
+		},
+		{
+			abs : function(x){
+				return Math.abs(x);
+			},
+			is_lazy : false,
+			help_msg : "(abs x) => the absolute value of x"
+		},
+		{
+			acos : function(x){
+				return Math.acos(x) || null;
+			},
+			is_lazy : false,
+			help_msg : "(acos x) => the arccosine of x or nil(if x is out of the range of -1 to 1) and the result value is between 0 and pi radians"
+		},
+		{
+			asin : function(x){
+				return Math.asin(x) || null;
+			},
+			is_lazy : false,
+			help_msg : "(asin x) => the arcsine of x or nil(if x is out of the range of -1 to 1) and the result value is between -pi/2 and pi/2"
+		},
+		{
+			atan : function(x, y){
+				if(y === undefined)
+					return Math.atan(x);
+				else
+					return Math.atan2(y, x);
+			},
+			is_lazy : false,
+			has_optional : true,
+			help_msg : "(atan x [y]) => the arctangent of arguments"
+		},
+		{
+			ceil : function(x){
+				return Math.ceil(x);
+			},
+			is_lazy : false,
+			help_msg : "(ceil x) => the smallest integer greater than or equal to x"
+		},
+		{
+			cos : function(x){
+				return Math.cos(x);
+			},
+			is_lazy : false,
+			help_msg : "(cos x) => the cosine of x(where x is a number representing an angle in radians)"
+		},
+		{
+			exp : function(x){
+				return Math.exp(x);
+			},
+			is_lazy : false,
+			help_msg : "(exp x) => E^x(where x is the argument, and E is the Euler's constant)"
+		},
+		{
+			floor : function(x){
+				return Math.floor(x);
+			},
+			is_lazy : false,
+			help_msg : "(floor x) => the largest integer less than or equal to x"
+		},
+		{
+			log : function(x){
+				return Math.log(x);
+			},
+			is_lazy : false,
+			help_msg : "(log x) => the natural logarithms(log_e, also ln) of x"
+		},
+		{
+			max : function(numbers : Common.IEnumerable){
+				if(numbers == null) return null;
+
+				var er = numbers.getEnumerator();
+				if(!er.moveNext())
+					return null;
+
+				var result = er.Current;
+				while(er.moveNext()){
+					result = Math.max(result, er.Current);
+				}
+				return result || null;
+			},
+			is_lazy : false,
+			accepts_variable_args : true,
+			help_msg : "(max (a ...)) => the largest number among all the numbers in the list supplied to the function or nil" +
+						"(if any one of the elements in the list is not a number or when an empty list is supplied)"
+		},
+		{
+			min : function(numbers : Common.IEnumerable){
+				if(numbers == null) return null;
+
+				var er = numbers.getEnumerator();
+				if(!er.moveNext())
+					return null;
+
+				var result = er.Current;
+				while(er.moveNext()){
+					result = Math.min(result, er.Current);
+				}
+				return result || null;
+			},
+			is_lazy : false,
+			accepts_variable_args : true,
+			help_msg : "(min (a ...)) => the smallest number among all the numbers in the list supplied to the function or nil" +
+						"(if any one of the elements in the list is not a number or when an empty list is supplied)"
+		},
+		{
+			pow : function(base, exponents){
+				return Math.pow(base, exponents);
+			},
+			is_lazy : false,
+			help_msg : "(pow base exponents) => base to the exponents power, that is, base^exponents"
+		},
+		{
+			random : function(){
+				return Math.random();
+			},
+			is_lazy : false,
+			help_msg : "(random) => a psuedo-random number in the range of [0, 1), that is, from 0(inclusive) up to 1(exclusive)"
+		},
+		{
+			round : function(x){
+				return Math.round(x);
+			},
+			is_lazy : false,
+			help_msg : "(round x) => the nearest integer to x"
+		},
+		{
+			sin : function(x){
+				return Math.sin(x);
+			},
+			is_lazy : false,
+			help_msg : "(sin x) => the sin of x(where x is a number representing an angle in radians)"
+		},
+		{
+			sqrt : function(x){
+				return Math.sqrt(x) || null;
+			},
+			is_lazy : false,
+			help_msg : "(sqrt x) => the positive square root of x or nil(if x is a nagative number)"
+		},
+		{
+			tan : function(x){
+				return Math.tan(x);
+			},
+			is_lazy : false,
+			help_msg : "(tan x) => the tangent of x(where x is a number representing an angle in radians)"
+		},
+		{
+			"radians-to-degrees" : function(a){
+				return a / (Math.PI / 180);
+			},
+			is_lazy : false,
+			help_msg : "(radians-to-degrees a) => the angle in degrees coverted from the argument"
+		},
+		{
+			"degrees-to-radians" : function(a){
+				return a * (Math.PI / 180);
+			},
+			is_lazy : false,
+			help_msg : "(degrees-to-radians a) => the angle in radians converted from the argument"
 		}
 	];
 
@@ -345,8 +535,8 @@ module TSLisp
 		"* It'll always do tail call optimization.\n" +
 		"* The symbol '*version*' refers to a list whose car is the version number and cdr is the platform name\n" +
 		"  on which it is running.\n" +
-		"* The subtract function '-' takes more than one arguments.\n" +
-		"* The divide function '/' takes more than two arguments.\n" +
+		"* The subtract function '-' can take more than one arguments.\n" +
+		"* The divide function '/' can take more than two arguments.\n" +
 		"* (delay x) constructs a Promise object as in Scheme, and it can be shortened to '~x'.\n" +
 		"  The built-in functions and conditional expressions implicitly resolve them.\n" +
 		"* The (read) function returns a EOF symbol when it encounters EOF.\n" +
@@ -357,15 +547,35 @@ module TSLisp
 		"* C-like escape sequences(such as \"\\n\") can be used in the string literal.\n" +
 		"* The back-quotes, commas and comma-ats are resolved when reading.\n" +
 		"  e.g. \"'`((,a b) ,c ,@d)\" => \"(cons (list a 'b) (cons c d))\"\n" +
-		"* Native functions can have optional parameters like the built-in function \"help\" only if they take, at most, two parameters.\n\n" +
+		"* Native functions can have optional parameters like the built-in function \"help\" does only if they take, at most, two parameters.\n\n" +
+		"Notations used in the help messages of native functions:\n" +
+		"Here I will explain the notations used in the help messages of native functions.\n\n" +
+		"Above all I use the word \"Native function\" to mean the functions that are written in TypeScript.\n" +
+		"And those functions are named in the following list, so see it to ensure which one is native and which is not.\n\n" +
+		"Here are some typical function descriptions. And I will explain the notations through these.\n" +
+		"  (foo x y [z]) => x + y or z - x + y(when z is supplied)\n" +
+		"  (barp x) => t; if x is the string \"bar\", otherwise nil\n" +
+		"  (bar (x y...)) : print x y ...\n" +
+		"The first description reads \"function 'foo' has 2 or 3 parameters(since z is optional) and it evaluates to 'x + y', when 2 arguments supplied, or 'z - x + y', when 3 arguments supplied.\"\n" +
+		"The second reads \"function 'barp' has only 1 parameter and it returns the symbol 't' if the argument is the string 'bar', otherwise returns nil.\"\n" +
+		"Generally descriptions of predicate functions, which are the functions that test some conditions against the arguments and " +
+		"return 't' if the test succeeds, or if the test fails, return 'nil', will take this form.\n" +
+		"And the third reads \"function 'bar' takes a list and print the elements in the order the list have the elements.\"\n" +
+		"Lists as arguments can usually have as many elements as you would like, unless they are described otherwise.\n" +
+		"And, as you may see from the third example, a colon ':' indicates that the function returns nothing or nothing useful " +
+		"for later computation and therefore can be considered to only has side-effects.\n\n" +
 		"Special forms:\n" +
 		"quote, progn, cond, setq, lambda, macro, delay\n" +
 		"Built-in functions:\n" +
 		"car, cdr, cons, atom, numberp, stringp, eq, eql, list\n" +
-		"print1, printc, terpri, read, +, -, *, /, %, <\n" +
+		"prin1, princ, terpri, read, +, -, *, /, %, <\n" +
 		"eval, apply, force, replaca, replacd, throw, mapcar, mapc, length\n" +
 		"ts-self\n" +
-		"dump, help\n" +
+		"dump, help, load-sample\n" +
+		"abs, acos, asin, atan, ceil, cos, exp, floor, log, max, min\n" +
+		"pow, random, round, sin, sqrt, tan, radians-to-degrees, degrees-to-radians\n" +
 		"Predefined variables:\n" +
-		"*error*, *version*, *eof*, t";
+		"*error*, *version*, *eof*, t\n" +
+		"Predefined constants:\n" +
+		"*pi*, *napier*";
 }
