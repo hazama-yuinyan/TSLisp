@@ -24,7 +24,7 @@ var TSLisp;
                     }
                     return tc;
                 } else {
-                    throw new SyntaxError("Unexpected EOF");
+                    throw ErrorFactory.makeSyntaxError("Unexpected EOF");
                 }
             },
             enumerable: true,
@@ -48,7 +48,11 @@ var TSLisp;
                     return this.parseExpression();
                 } catch (ex) {
                     this.last_error = true;
-                    throw new TSLisp.EvalException("SyntaxError : " + ex.message + " -- " + this.lexer.LineNumber + " : " + this.lexer.Line);
+                    throw ErrorFactory.makeEvalException("SyntaxError : {msg} -- {line_num} : {line}", {
+                        msg: ex.message,
+                        line_num: this.lexer.LineNumber,
+                        line: this.lexer.Line
+                    });
                 }
             } else {
                 return Reader.EOF;
@@ -62,7 +66,9 @@ var TSLisp;
             switch(tc) {
                 case '.':
                 case ')': {
-                    throw new SyntaxError("Unexpected " + tc);
+                    throw ErrorFactory.makeSyntaxError("Unexpected {token}", {
+                        token: tc
+                    });
 
                 }
                 case '(': {
@@ -112,7 +118,9 @@ var TSLisp;
                     var e2 = this.parseExpression();
                     this.moveNext();
                     if(this.Current != ')') {
-                        throw new SyntaxError("Expected ')' but found " + this.Current);
+                        throw ErrorFactory.makeSyntaxError("Expected ')' but found {actual}", {
+                            actual: this.Current
+                        });
                     }
                     return new TSLisp.Cell(e1, e2);
                 } else {
@@ -130,7 +138,6 @@ var TSLisp;
             this.line = "";
             this.is_eof = false;
             this.state = "eager";
-            this.console_obj = Common.HtmlConsole.instance();
             this.raw_input = input.getEnumerator();
         }
         Object.defineProperty(Lexer.prototype, "LineNumber", {
@@ -256,7 +263,9 @@ var TSLisp;
                                     if(Lexer.checkSymbol(token)) {
                                         return TSLisp.Symbol.symbolOf(token);
                                     } else {
-                                        return new SyntaxError("Bad token: " + TSLisp.LL.str(token));
+                                        return ErrorFactory.makeSyntaxError("Bad token: {token}", {
+                                            token: TSLisp.LL.str(token)
+                                        });
                                     }
                                 } else {
                                     return nv;
@@ -279,7 +288,9 @@ var TSLisp;
 
                     }
                     case '\n': {
-                        return new SyntaxError("Matching '\"' not found in " + TSLisp.LL.str(result));
+                        return ErrorFactory.makeSyntaxError("Expected '\"', but found {str}", {
+                            str: TSLisp.LL.str(result)
+                        });
 
                     }
                     case '\\': {
@@ -348,7 +359,9 @@ var TSLisp;
 
                             }
                             default: {
-                                return new SyntaxError("Bad escape: " + ch.Current);
+                                return ErrorFactory.makeSyntaxError("Bad escape: {str}", {
+                                    str: ch.Current
+                                });
 
                             }
                         }
@@ -391,9 +404,7 @@ var TSLisp;
             return String.fromCharCode(in_number);
         }
         Lexer.tryToParseNumber = function tryToParseNumber(token) {
-            var radix_sign = token.match(/^[box]/i);
-            var radix = 10;
-
+            var radix_sign = token.match(/^[box]/i), radix = 10;
             if(radix_sign) {
                 switch(radix_sign[0]) {
                     case 'b':
@@ -541,6 +552,4 @@ var TSLisp;
         QQ.expand2 = expand2;
     })(TSLisp.QQ || (TSLisp.QQ = {}));
     var QQ = TSLisp.QQ;
-
 })(TSLisp || (TSLisp = {}));
-

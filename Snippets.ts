@@ -3,8 +3,10 @@
  */
 
 
-module TSLisp
-{
+module TSLisp{
+    /**
+     * Contains various additional initialization code.
+     */
 	export var PRELUDE = 
 		"(setq defmacro\n" +
 		"      (macro (name args &rest body)\n" +
@@ -197,6 +199,9 @@ module TSLisp
 		"        ((f (car x)) (cons (car x) ~(filter f (cdr x))))\n" +
 		"        (t (filter f (cdr x)))))\n";
 
+    /**
+     * An example of calculating the prime numbers using deffered execution.
+     */
 	export var PRIMES = 
 		"(setq primes\n" +
 		"  (let (p s n)\n" +
@@ -216,6 +221,9 @@ module TSLisp
 		"      (cons x ~(n (+ x 1))))\n\n" +
 		"    (p (n 2))))\n";
 	
+    /**
+     * An example of calculating Fibonacci numbers using deffered execution.
+     */
 	export var FIBS = 
 		"(setq fibs\n" +
 		"      (cons 1 (cons 1 ~(mapf (lambda (x) (apply + x))\n" +

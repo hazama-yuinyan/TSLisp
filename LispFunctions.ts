@@ -1,6 +1,9 @@
 ///<reference path='Common.ts' />
 ///<reference path='WebHelpers.ts' />
 ///<reference path='Snippets.ts' />
+///<reference path='ErrorFactory.ts' />
+///<reference path='Utils.ts' />
+///<reference path='LispTypes.ts' />
 
 
 
@@ -9,11 +12,10 @@
  * Note that the (read) and (list ...) functions are already registered in the Interpreter constructor.
  */
 
-module TSLisp
-{
+module TSLisp{
 	function arithmeticAdd(lhs, rhs){
 		if(typeof lhs === "string" || typeof rhs === "string")
-			throw new EvalException("Can not add number to string or vice-versa!\nUse add function!");
+			throw ErrorFactory.makeTypeError("Can not add number to string or vice-versa!\nUse add function!");
 
 		return lhs + rhs;
 	}
@@ -21,14 +23,14 @@ module TSLisp
 	export var built_in_funcs = [
 		{
 			car : function(list){
-				return (list == null) ? null : <Cell>(list).car;
+				return (list == null) ? null : (<Cell> list).car;
 			},
 			is_lazy : false,
 			help_msg : "(car (cons x y)) => x"
 		},
 		{
 			cdr : function(list){
-				return (list == null) ? null : <Cell>(list).cdr;
+				return (list == null) ? null : (<Cell> list).cdr;
 			},
 			is_lazy : false,
 			help_msg : "(cdr (cons x y)) => y"
@@ -98,7 +100,7 @@ module TSLisp
 				return newCar;
 			},
 			is_lazy : false,
-			help_msg : "(replace (cons x y) a) => a : replace x with a"
+			help_msg : "(replace (cons x y) a) => a : replace x with a. In other words, replace car with a"
 		},
 		{
 			replacd : function(cons, newCdr){
@@ -106,11 +108,11 @@ module TSLisp
 				return newCdr;
 			},
 			is_lazy : false,
-			help_msg : "(replacd (cons x y) a) => a : replace y with a"
+			help_msg : "(replacd (cons x y) a) => a : replace y with a. In other words, replace cdr with a"
 		},
 		{
 			"throw" : function(tag, value){
-				throw new LispThrowException(tag, value);
+				throw ErrorFactory.makeLispThrowException(tag, value);
 			},
 			is_lazy : false,
 			help_msg : "(throw tag value) : throw value with tag"
@@ -127,11 +129,11 @@ module TSLisp
 					return (<Common.ICollection> arg).getCount();
 			},
 			is_lazy : false,
-			help_msg : "(length a list, string or ICollection) => the number of elements"
+			help_msg : "(length a), where a is a list, string or ICollection, => the number of elements"
 		},
 		{
 			_add : function(lhs, rhs){
-				return <string>lhs + <string> rhs;
+				return <string>lhs + <string>rhs;
 			},
 			is_lazy : false,
 			help_msg : "(_add str1 str2) => str1 + str2"
@@ -144,9 +146,8 @@ module TSLisp
 					var result = "";
 					if(args != null){
 						var er = (<Common.IEnumerable> args).getEnumerator();
-						while(er.moveNext()){
+						while(er.moveNext())
 							result += er.Current.toString();
-						}
 					}
 
 					return result;
@@ -181,9 +182,8 @@ module TSLisp
 				if(n == 1)
 					return -x;
 				
-				for(var i = 1; i < n; ++i){
+				for(var i = 1; i < n; ++i)
 					x = x - args.get(i);
-				}
 
 				return x;
 			},
@@ -207,12 +207,11 @@ module TSLisp
 			"/" : function(args : Common.IList){
 				var n = args.getCount();
 				if(n < 2)
-					throw new EvalException("2 or more arguments expected", args);
+					throw ErrorFactory.createEvalException("2 or more arguments expected", args);
 
 				var x = args.get(0);
-				for(var i = 1; i < n; ++i){
+				for(var i = 1; i < n; ++i)
 					x = x / args.get(i);
-				}
 
 				return x;
 			},
@@ -257,7 +256,7 @@ module TSLisp
 		},
 		{
 			apply : function(fn, args){
-				return interp.apply(fn, LL.listFromTS(<Common.IEnumerable>(args)));
+				return interp.apply(fn, LL.listFromTS((<Common.IEnumerable> args)));
 			},
 			is_lazy : false,
 			help_msg : "(apply fn (a b c ...)) => the result of (fn a b c ...)"
@@ -315,30 +314,38 @@ module TSLisp
 		{
 			help : function(arg){
 				if(arg == null)
-					Common.HtmlConsole.println(help_str);
+					Common.HtmlConsole.println(Utils.substituteTemplate(help_str, {version : LL.Version}));
 				else{
 					if(!(arg instanceof Symbol))
-						throw new EvalException("The help function can not take arguments other than a symbol");
+						throw ErrorFactory.createEvalException("The help function can not take arguments other than a symbol");
 
 					var func_obj = interp.SymbolTable.lookup(<Symbol>arg);
 					if(func_obj.help_msg)
 						Common.HtmlConsole.println(func_obj.help_msg);
 					else{
 						if(func_obj.body)
-							Common.HtmlConsole.println("The symbol \"" + arg.toString() + "\" doesn't refer to a function!");
+							Common.HtmlConsole.println(
+                                Utils.substituteTemplate('The symbol "{arg}" doesn\'t refer to a function!',
+                                    {arg : arg.toString()}
+                                )
+                            );
 						else
-							Common.HtmlConsole.println("The target function \"" + arg.toString() + "\" doesn't seem to have help message.");
+							Common.HtmlConsole.println(
+                                Utils.substituteTemplate('The target function "{arg}" doesn\'t seem to have help message.',
+                                    {arg : arg.toString()}
+                                )
+                            );
 					}
 				}
 				return null;
 			},
 			is_lazy : false,
 			has_optional : true,
-			help_msg : "(help [arg]) : print the help message when no args supplied or print the target function's help message when a symbol is passed"
+			help_msg : "(help [arg]) : print the help message when no args supplied or print the target function's help message when a symbol is passed in"
 		},
 		{
 			"load-sample" : function(name){
-				if(typeof name !== "string") throw new EvalException("This function can not take arguments other than a string!");
+				if(typeof name !== "string") throw ErrorFactory.createEvalException("This function can not take arguments other than a string!");
 
 				name = name.toUpperCase();
 				var target = TSLisp[name];
@@ -346,7 +353,7 @@ module TSLisp
 					var old_env = interp.Environment;
 					interp.Environment = null;		//evaluate the sample code in the global scope
 					try{
-						return interp.run(Lines.fromString(target));
+						return interp.evaluateStrings(target);
 					}
 					finally{
 						interp.Environment = old_env;
@@ -433,10 +440,10 @@ module TSLisp
 					return null;
 
 				var result = er.Current;
-				while(er.moveNext()){
+				while(er.moveNext())
 					result = Math.max(result, er.Current);
-				}
-				return result || null;
+				
+                return result || null;
 			},
 			is_lazy : false,
 			accepts_variable_args : true,
@@ -452,10 +459,10 @@ module TSLisp
 					return null;
 
 				var result = er.Current;
-				while(er.moveNext()){
+				while(er.moveNext())
 					result = Math.min(result, er.Current);
-				}
-				return result || null;
+				
+                return result || null;
 			},
 			is_lazy : false,
 			accepts_variable_args : true,
@@ -521,7 +528,8 @@ module TSLisp
 	];
 
 	var help_str = 
-		"TypeScript Lisp 1.0                                    Oct. 28 2012\n\n" + 
+		"TypeScript Lisp {version}                                    Oct. 28 2012\n" +
+        "                                            Last modified at Jan. 14 2013\n\n" +
 		"A small Lisp implementation in TypeScript\n\n" +
 		"TS Lisp uses the following objects as Lisp values:\n\n" +
 		"  numbers and strings => JavaScript's primitive values(and objects)\n" +
@@ -535,11 +543,11 @@ module TSLisp
 		"* It'll always do tail call optimization.\n" +
 		"* The symbol '*version*' refers to a list whose car is the version number and cdr is the platform name\n" +
 		"  on which it is running.\n" +
-		"* The subtract function '-' can take more than one arguments.\n" +
-		"* The divide function '/' can take more than two arguments.\n" +
+		"* The subtract function '-' can take more than zero arguments(when only one argument is supplied it works as the unary operator '-').\n" +
+		"* The divide function '/' can take more than one argument.\n" +
 		"* (delay x) constructs a Promise object as in Scheme, and it can be shortened to '~x'.\n" +
 		"  The built-in functions and conditional expressions implicitly resolve them.\n" +
-		"* The (read) function returns a EOF symbol when it encounters EOF.\n" +
+		"* The (read) function returns the EOF symbol when it encounters EOF.\n" +
 		"* Evaluating (lambda ...) yields a function whose parameters are \"compiled\".\n" +
 		"* The form (macro ...) can only be evaluated in the global scope and it yields a Macro object.\n" +
 		"* In the form (macro ...), symbols beginning with '$' are cosidered to be dummy symbols.\n" +
@@ -547,8 +555,10 @@ module TSLisp
 		"* C-like escape sequences(such as \"\\n\") can be used in the string literal.\n" +
 		"* The back-quotes, commas and comma-ats are resolved when reading.\n" +
 		"  e.g. \"'`((,a b) ,c ,@d)\" => \"(cons (list a 'b) (cons c d))\"\n" +
-		"* Native functions can have optional parameters like the built-in function \"help\" does only if they take, at most, two parameters.\n\n" +
-		"Notations used in the help messages of native functions:\n" +
+		"* Native functions can have optional parameters like the built-in function \"help\" does only if they take, at most, two parameters.\n" +
+		"Note: Most of the implementation is taken from the following web site; http://www.oki-osk.jp/esc/llsp/v8.html\n" +
+        "(The above web site is written only in Japanese)\n\n" +
+        "Notations used in the help messages of native functions:\n" +
 		"Here I will explain the notations used in the help messages of native functions.\n\n" +
 		"Above all I use the word \"Native function\" to mean the functions that are written in TypeScript.\n" +
 		"And those functions are named in the following list, so see it to ensure which one is native and which is not.\n\n" +

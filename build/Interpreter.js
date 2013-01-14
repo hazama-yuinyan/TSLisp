@@ -1,11 +1,9 @@
 var TSLisp;
 (function (TSLisp) {
     var Interpreter = (function () {
-        function Interpreter() {
+        function Interpreter(native_read_func) {
             this.environ = null;
-            Common.HtmlConsole.initialize();
-            Common.HtmlConsole.println("Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript." + "\n\nCall the help function for more info on TSLisp.");
-            Common.HtmlConsole.instance().printPS();
+            this.console = new Common.HtmlConsole();
             this.symbols = new Common.HashTable(1000, function (key) {
                 return Utils.getHashCodeFor(key);
             }, function (lhs, rhs) {
@@ -16,14 +14,13 @@ var TSLisp;
             }, function (lhs, rhs) {
                 return lhs == rhs;
             });
-            this.reader = new TSLisp.Reader(Common.HtmlConsole.instance());
             this.symbols.add(TSLisp.LL.S_ERROR, TSLisp.LL.S_ERROR);
             this.symbols.add(TSLisp.LL.S_T, TSLisp.LL.S_T);
             this.symbols.add(TSLisp.Symbol.symbolOf("*version*"), TSLisp.LL.list(TSLisp.LL.Version, "TypeScript"));
             this.symbols.add(TSLisp.Symbol.symbolOf("*eof*"), TSLisp.LL.S_EOF);
             this.symbols.add(TSLisp.Symbol.symbolOf("*pi*"), Math.PI);
             this.symbols.add(TSLisp.Symbol.symbolOf("*napier*"), Math.E);
-            var read_func_obj = new TSLisp.LispFunction(this.reader.read, "(read) : reads an S expression from the standard input", false, false);
+            var read_func_obj = new TSLisp.LispFunction(native_read_func, "(read) : reads an S expression from the standard input", false, false);
             this.symbols.add(TSLisp.Symbol.symbolOf("read"), read_func_obj);
             var list_func = TSLisp.LL.listFrom;
             var list_func_obj = new TSLisp.LispFunction(list_func, "(list a b c ...) => (a b c ...)", false, true);
@@ -51,33 +48,19 @@ var TSLisp;
             enumerable: true,
             configurable: true
         });
-        Interpreter.prototype.run = function (lines) {
-            if(!lines) {
-                lines = Common.HtmlConsole.instance();
-            }
-            var interactive = lines instanceof Common.HtmlConsole;
-            var rr = new TSLisp.Reader(lines);
+        Interpreter.prototype.evaluateString = function (text) {
+            var lisp_expr = new TSLisp.Reader(TSLisp.Lines.fromString(text)).read();
+            return this.evaluate(lisp_expr, false);
+        };
+        Interpreter.prototype.evaluateStrings = function (lines) {
+            var parser = new TSLisp.Reader(TSLisp.Lines.fromString(lines));
             var result = null;
             while(true) {
-                try  {
-                    var lisp_obj = rr.read();
-                    if(lisp_obj == TSLisp.LL.S_EOF) {
-                        if(interactive) {
-                            (lines).printPS();
-                        }
-                        return result;
-                    }
-                    result = this.evaluate(lisp_obj, false);
-                    if(interactive) {
-                        Common.HtmlConsole.println(TSLisp.LL.str(result));
-                    }
-                } catch (ex) {
-                    if(interactive) {
-                        Common.HtmlConsole.println(ex.message);
-                    } else {
-                        throw ex;
-                    }
+                var lisp_expr = parser.read();
+                if(lisp_expr == TSLisp.LL.S_EOF) {
+                    return result;
                 }
+                result = this.evaluate(lisp_expr, false);
             }
         };
         Interpreter.prototype.loadNatives = function (target) {
@@ -142,7 +125,7 @@ var TSLisp;
                                 if(fn == TSLisp.LL.S_QUOTE) {
                                     var kdr = xc.cdr;
                                     if(kdr == null || kdr.cdr != null) {
-                                        throw new TSLisp.EvalException("Found a bad quotation!");
+                                        throw ErrorFactory.makeEvalException("Found a bad quotation!");
                                     }
                                     return kdr.car;
                                 } else {
@@ -168,7 +151,7 @@ var TSLisp;
                                                 } else {
                                                     if(fn == TSLisp.LL.S_MACRO) {
                                                         if(this.environ != null) {
-                                                            throw new TSLisp.EvalException("Nested macro!", x);
+                                                            throw ErrorFactory.makeEvalException("Nested macro!", x);
                                                         }
                                                         var substituted = Interpreter.substituteDummyVariables(x);
                                                         var compiled = this.compile(substituted);
@@ -181,7 +164,7 @@ var TSLisp;
                                                                 if(fn == TSLisp.LL.S_DELAY) {
                                                                     var kdr = xc.cdr;
                                                                     if(kdr == null || kdr.cdr != null) {
-                                                                        throw new TSLisp.EvalException("Bad delay!");
+                                                                        throw ErrorFactory.makeEvalException("Bad delay!");
                                                                     }
                                                                     return new TSLisp.Promise(kdr.car, this.environ, this);
                                                                 } else {
@@ -290,7 +273,7 @@ var TSLisp;
         Interpreter.prototype.evalSymbol = function (name) {
             var val = this.symbols.lookup(name);
             if(val === undefined) {
-                throw new TSLisp.EvalException("Unbound variable", name);
+                throw ErrorFactory.createEvalException("Unbound variable", name);
             }
             return val;
         };
@@ -351,7 +334,7 @@ var TSLisp;
                     }
                 } else {
                     if(clause != null) {
-                        throw new TSLisp.EvalException("Not any test clause found in cond", clause);
+                        throw ErrorFactory.createEvalException("Not any test clause found in cond", clause);
                     }
                 }
                 body = bc.cdr;
@@ -377,11 +360,11 @@ var TSLisp;
                 var lval = c.car;
                 c = c.cdr;
                 if(!(c instanceof TSLisp.Cell)) {
-                    throw new TSLisp.EvalException("Missing the right-hand-side of a SetQ form");
+                    throw ErrorFactory.createEvalException("Missing the right-hand-side of a SetQ form");
                 }
                 result = this.evaluate(c.car, false);
                 if(lval instanceof TSLisp.Symbol) {
-                    this.symbols.add(lval, result);
+                    this.symbols.addOrUpdate(lval, result);
                 } else {
                     if(lval instanceof TSLisp.Arg) {
                         (lval).setValue(result, this.environ);
@@ -394,26 +377,26 @@ var TSLisp;
         Interpreter.prototype.throwArgException = function (expectedNumArgs, argList) {
             switch(expectedNumArgs) {
                 case 0: {
-                    throw new TSLisp.EvalException("No args expected", argList);
+                    throw ErrorFactory.createEvalException("No args expected", argList);
 
                 }
                 case 1: {
-                    throw new TSLisp.EvalException("One arg expected", argList);
+                    throw ErrorFactory.createEvalException("One arg expected", argList);
 
                 }
                 case 2: {
-                    throw new TSLisp.EvalException("Two args expected", argList);
+                    throw ErrorFactory.createEvalException("Two args expected", argList);
 
                 }
             }
         };
         Interpreter.prototype.callNative = function (fn, argList, willForce) {
             if(!(fn instanceof TSLisp.LispFunction)) {
-                throw new TSLisp.EvalException("Not applicable: ", fn);
+                throw ErrorFactory.makeEvalException("Not applicable: {not_callable}", {
+                    not_callable: TSLisp.LL.str(fn)
+                });
             }
-            var func = fn.body;
-            var has_optional = fn.has_optional;
-
+            var func = fn.body, has_optional = fn.has_optional;
             try  {
                 var arg_names = Utils.getArgumentNamesFor(func);
                 var arity = (fn.accepts_variable_args) ? 3 : arg_names.length;
@@ -469,7 +452,12 @@ var TSLisp;
                 }
             } catch (ex) {
                 fn = this.symbols.findKey(fn);
-                throw new TSLisp.EvalException(ex.name + ": " + ex.message + " -- " + fn + " " + TSLisp.LL.str(argList), ex);
+                throw ErrorFactory.makeEvalException("{name}: {message} -- {func_name} {args}", {
+                    name: ex.name,
+                    message: ex.message,
+                    func_name: fn,
+                    args: TSLisp.LL.str(argList)
+                });
             }
         };
         Interpreter.prototype.evalAndForce = function (arg, willForce) {
@@ -501,7 +489,7 @@ var TSLisp;
         Interpreter.prototype.applyDefined = function (fn, args, canLoseEnviron, x) {
             var body = fn.body;
             if(!(body instanceof TSLisp.Cell)) {
-                throw new TSLisp.EvalException("Missing function body!");
+                throw ErrorFactory.createEvalException("Missing function body!");
             }
             var arity = fn.arity;
             if(arity < 0) {
@@ -515,7 +503,7 @@ var TSLisp;
                 }
             }
             if(arity != args.getCount()) {
-                throw new TSLisp.EvalException("The number of arguments doesn't match that of parameters");
+                throw ErrorFactory.createEvalException("The number of arguments doesn't match that of parameters");
             }
             var old_env = this.environ;
             this.environ = new TSLisp.Cell(args, fn.env);
@@ -545,7 +533,7 @@ var TSLisp;
             console.log((x).car == TSLisp.LL.S_LAMBDA || (x).car == TSLisp.LL.S_MACRO);
             var j = x.cdr;
             if(!(j instanceof TSLisp.Cell)) {
-                throw new TSLisp.EvalException("Missing the argument list and the body!");
+                throw ErrorFactory.createEvalException("Missing the argument list and the body!");
             }
             var result = Interpreter.makeArgTable(j.car);
             var arity = result.table.getCount();
@@ -554,7 +542,7 @@ var TSLisp;
             }
             j = j.cdr;
             if(!(j instanceof TSLisp.Cell)) {
-                throw new TSLisp.EvalException("Missing the body!");
+                throw ErrorFactory.createEvalException("Missing the body!");
             }
             j = Interpreter.scanArgs(j, result.table);
             j = this.expandMacros(j, TSLisp.LL.MAX_MACRO_EXPS);
@@ -627,7 +615,7 @@ var TSLisp;
             while(i instanceof TSLisp.Cell) {
                 var j = (i).car;
                 if(result.has_rest) {
-                    throw new TSLisp.EvalException("Can not declare rest parameters multiple times!", j);
+                    throw ErrorFactory.createEvalException("Can not declare rest parameters multiple times!", j);
                 }
                 if(j == TSLisp.LL.S_REST) {
                     i = (i).cdr;
@@ -725,6 +713,5 @@ var TSLisp;
         return Interpreter;
     })();
     TSLisp.Interpreter = Interpreter;    
-    TSLisp.interp = new Interpreter();
+    TSLisp.interp = null;
 })(TSLisp || (TSLisp = {}));
-

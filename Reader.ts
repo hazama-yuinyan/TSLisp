@@ -1,11 +1,11 @@
 ///<reference path='LispTypes.ts' />
 ///<reference path='Utils.ts' />
 ///<reference path='Common.ts' />
+///<reference path='ErrorFactory.ts' />
 
 
 
-module TSLisp
-{
+module TSLisp{
     export class Lines
     {
         public static fromString(str : string) : Common.StringReader
@@ -31,9 +31,8 @@ module TSLisp
                 if(tc instanceof SyntaxError) throw tc;
 
                 return tc;
-            }else{
-                throw new SyntaxError("Unexpected EOF");
-            }
+            }else
+                throw ErrorFactory.makeSyntaxError("Unexpected EOF");
         }
 
         constructor(input : Common.IEnumerable)
@@ -48,7 +47,7 @@ module TSLisp
         public read() : any
         {
             this.lexer.reset();
-            if(this.last_error){ //If we saw an error at last time, then skip to the next line
+            if(this.last_error){    //If we saw an error at last time, then skip to the next line
                 var n = this.lexer.LineNumber;
                 while(this.has_current && this.lexer.LineNumber == n) this.moveNext();
                 this.last_error = false;
@@ -63,7 +62,11 @@ module TSLisp
                 }
                 catch(ex){
                     this.last_error = true;
-                    throw new EvalException("SyntaxError : " + ex.message + " -- " + this.lexer.LineNumber + " : " + this.lexer.Line);
+                    throw ErrorFactory.makeEvalException("SyntaxError : {msg} -- {line_num} : {line}", {
+                        msg : ex.message,
+                        line_num : this.lexer.LineNumber,
+                        line : this.lexer.Line
+                    });
                 }
             }else{
                 return Reader.EOF;
@@ -81,7 +84,7 @@ module TSLisp
             switch(tc){
             case '.':
             case ')':
-                throw new SyntaxError("Unexpected " + tc);
+                throw ErrorFactory.makeSyntaxError("Unexpected {token}", {token : tc});
 
             case '(':
                 this.moveNext();
@@ -124,7 +127,7 @@ module TSLisp
                     var e2 = this.parseExpression();
                     this.moveNext();
                     if(this.Current != ')')
-                        throw new SyntaxError("Expected ')' but found " + this.Current);
+                        throw ErrorFactory.makeSyntaxError("Expected ')' but found {actual}", {actual : this.Current});
 
                     return new Cell(e1, e2);
                 }else{
@@ -143,7 +146,11 @@ module TSLisp
         private cur_line : number = 0;
         private line : string = "";
         private is_eof : bool = false;
-        private console_obj : Common.HtmlConsole;
+        
+        // In general context of Object-Oriented Programming, raw_input and char_iter should be specified as Common.IEnumerator
+        // because these declarations must state that we can use any classes that implement Common.IEnumerator to get a line of input.
+        // But unfortunately TypeScript doesn't allow interfaces to have properties, at least as of writing this code, so we're forced
+        // to use a concrete class instead. Maybe I should change the Common.Enumerator.Current to Common.Enumerator.getCurrent or something.
         private raw_input : Common.Enumerator;
         private char_iter : Common.Enumerator;
         private state = "eager";
@@ -154,7 +161,6 @@ module TSLisp
         
         constructor(input : Common.IEnumerable)
         {
-            this.console_obj = Common.HtmlConsole.instance();
             this.raw_input = input.getEnumerator();
         }
         
@@ -165,7 +171,6 @@ module TSLisp
     	{
     		this.state = "eager";
             this.is_eof = false;
-            //if(this.console_obj.reset) this.console_obj.reset();
     	}
 
         public getEnumerator() : Common.Enumerator
@@ -194,9 +199,8 @@ module TSLisp
                             }
                         });
                         ch.moveNext();
-                    }else{
+                    }else
                         this.is_eof = true;
-                    }
                 }else{
                     if(this.state != "don't_move")
                         ch.moveNext();
@@ -259,7 +263,7 @@ module TSLisp
                                 if(Lexer.checkSymbol(token))
                                     return Symbol.symbolOf(token);
                                 else
-                                    return new SyntaxError("Bad token: " + LL.str(token));
+                                    return ErrorFactory.makeSyntaxError("Bad token: {token}", {token : LL.str(token)});
                             }else{
                                 return nv;
                             }
@@ -281,7 +285,7 @@ module TSLisp
                     return result;
 
                 case '\n':
-                    return new SyntaxError("Matching '\"' not found in " + LL.str(result));
+                    return ErrorFactory.makeSyntaxError("Expected '\"', but found {str}", {str : LL.str(result)});
 
                 case '\\':
                     ch.moveNext();
@@ -323,7 +327,7 @@ module TSLisp
                         continue;
 
                     default:
-                        return new SyntaxError("Bad escape: " + ch.Current);
+                        return ErrorFactory.makeSyntaxError("Bad escape: {str}", {str : ch.Current});
                     }
                     break;
 
@@ -399,8 +403,7 @@ module TSLisp
     /**
      * Represents Quasi-Quotation
      */
-    export module QQ
-    {
+    export module QQ{
         export class Unquote
         {
             constructor(public x) {}

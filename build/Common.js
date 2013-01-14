@@ -106,6 +106,20 @@ var Common;
             ++this.count;
             return true;
         };
+        HashTable.prototype.addOrUpdate = function (key, data) {
+            var val = this.hash_func(key);
+            val = val % this.size;
+            for(var cur = this.store[val]; cur != null; cur = cur.next) {
+                if(this.equals_func(key, cur.key)) {
+                    cur.data = data;
+                    return;
+                }
+            }
+            var new_entry = new HashEntry(key, data);
+            new_entry.next = this.store[val];
+            this.store[val] = new_entry;
+            ++this.count;
+        };
         HashTable.prototype.remove = function (key) {
             var val = this.hash_func(key);
             val = val % this.size;
@@ -266,4 +280,3 @@ var Common;
     }
     Common.takeAll = takeAll;
 })(Common || (Common = {}));
-

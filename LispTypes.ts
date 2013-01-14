@@ -1,10 +1,10 @@
-///<reference path='./Interfaces.ts' />
+///<reference path='./Common.ts' />
 ///<reference path='./Utils.ts' />
+///<reference path='./ErrorFactory.ts' />
 
 
 
-module TSLisp
-{
+module TSLisp{
     /**
      * Represents a symbol in Lisp.
      */
@@ -41,7 +41,7 @@ module TSLisp
      */
     export class LL
     {
-        public static Version : number = 1.0;
+        public static Version : number = 1.1;
         public static MAX_EXPANSIONS = 5;
         public static MAX_MACRO_EXPS = 20;
         public static MAX_EXC_TRACES = 10;
@@ -62,19 +62,11 @@ module TSLisp
         public static S_T = Symbol.symbolOf("t");
         public static S_UNWIND_PROTECT = Symbol.symbolOf("unwind-protect");
 
-        public static str(x : any, printQuote? : bool, recLevel? : number, printed? : Common.HashTable) : string
+        public static str(x : any, printQuote? : bool, recLevel? : number, printed? : any[]) : string
         {
             if(printQuote === undefined) printQuote = true;
             if(recLevel === undefined) recLevel = LL.MAX_EXPANSIONS;
-            if(printed === undefined){
-                printed = new Common.HashTable(100,
-                    (key) => {
-                        return Utils.getHashCodeFor(key);
-                    },
-                    (lhs, rhs) => {
-                        return lhs === rhs;
-                    });
-            }
+            if(printed === undefined) printed = [];
 
             var result;
             if(x === null){
@@ -98,18 +90,18 @@ module TSLisp
                 });
                 result += xs + '"';
                 return result;
-            }else if(x instanceof Array){
-                var xl = x;
-                if(printed.contains(xl)){
+            }else if(Utils.isInheritedFrom(x, Common.List)){
+                var xl = <Common.List>x;
+                if(printed.indexOf(xl) != -1){
                     --recLevel;
                     if(recLevel == 0) return "[...]";
                 }else{
-                    printed.add(xl, true);
+                    printed.push(xl);
                 }
 
                 result = "[";
-                xl.forEach(function(elem, i){
-                    if(i != 0) result += ", ";
+                xl.each(function(elem : any, index : number) : void{
+                    if(index != 0) result += ", ";
                     result += LL.str(elem);
                 });
                 result += "]";
@@ -130,8 +122,7 @@ module TSLisp
                     new Common.Enumerator(() => {
                         if(i < args.length)
                             return args[i++];
-                        }
-                    )
+                    })
                 )
             );
         }
@@ -175,7 +166,7 @@ module TSLisp
         public static mapCar(fn : (x) => any, args : Common.IEnumerable)
         {
             if(!fn)
-                throw new TypeError("Null function");
+                throw ErrorFactory.makeTypeError("Null function");
             
             if(args == null)
                 return null;
@@ -233,13 +224,14 @@ module TSLisp
     {
         private tag;
         private value;
+        private static MSG = "No handler found for ({tag} {value})";
 
         public get Tag(){return this.tag;}
         public get Value(){return this.value;}
 
         constructor(tag, value)
         {
-            super("No catcher found for (" + LL.str(tag) + " " + LL.str(value) + ")")
+            super(Utils.substituteTemplate(LispThrowException.MSG, {tag : LL.str(tag), value : LL.str(value)}));
             this.tag = tag;
             this.value = value;
         }
@@ -266,6 +258,8 @@ module TSLisp
      */
     export class Cell implements Common.IEnumerable
     {
+        private static TMPL : string = "Cell({car}, {cdr})";
+        
         constructor(public car : any, public cdr : any)
         {
             this.car = car;
@@ -314,16 +308,16 @@ module TSLisp
 
         public toString() : string
         {
-            return "Cell(" + this.car + ", " + this.cdr + ")";
+            return Utils.substituteTemplate(Cell.TMPL, this);
         }
 
-        public repr(printQuote : bool, recLevel : number, printed : Common.HashTable) : string
+        public repr(printQuote : bool, recLevel : number, printed : any[]) : string
         {
-            if(printed.contains(this)){
+            if(printed.indexOf(this) != -1){
                 --recLevel;
                 if(recLevel == 0) return "...";
             }else{
-                printed.add(this, true);
+                printed.push(this);
             }
 
             var kdr = this.cdr;
@@ -343,9 +337,9 @@ module TSLisp
 
     /**
      * Represents a Lisp function instance.
-     * help_msg can be null if no help message is needed.
-     * has_optional indicates whether the function has optional parameters or not.
-     * accepts_variable_args indicates whether the function can take more than three arguments or not.
+     * @field help_msg can be null if no help message is needed.
+     * @field has_optional indicates whether the function has optional parameters or not.
+     * @field accepts_variable_args indicates whether the function can take more than three arguments or not.
      */
     export class LispFunction
     {
@@ -415,11 +409,13 @@ module TSLisp
      */
     export class Arg
     {
+        private static FORMAT = "#{level}:{offset}:{symbol}";
+        
         constructor(public level : number, public offset : number, public symbol : Symbol){}
 
         public toString() : string
         {
-            return "#" + this.level + ":" + this.offset + ":" + this.symbol;
+            return Utils.substituteTemplate(Arg.FORMAT, this);
         }
 
         public setValue(x : any, env : Cell)
@@ -440,11 +436,13 @@ module TSLisp
      */
     export class Dummy
     {
+        private static FORMAT = ":{symbol}:Dummy";
+        
         constructor(public symbol : Symbol){}
 
         public toString() : string
         {
-            return ":" + this.symbol + ":Dummy";
+            return Utils.substituteTemplate(Dummy.FORMAT, this);
         }
     }
 

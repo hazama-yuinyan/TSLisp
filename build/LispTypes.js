@@ -2,7 +2,7 @@ var __extends = this.__extends || function (d, b) {
     function __() { this.constructor = d; }
     __.prototype = b.prototype;
     d.prototype = new __();
-}
+};
 var TSLisp;
 (function (TSLisp) {
     var Symbol = (function () {
@@ -34,7 +34,7 @@ var TSLisp;
     TSLisp.Symbol = Symbol;    
     var LL = (function () {
         function LL() { }
-        LL.Version = 1;
+        LL.Version = 1.1;
         LL.MAX_EXPANSIONS = 5;
         LL.MAX_MACRO_EXPS = 20;
         LL.MAX_EXC_TRACES = 10;
@@ -62,11 +62,7 @@ var TSLisp;
                 recLevel = LL.MAX_EXPANSIONS;
             }
             if(printed === undefined) {
-                printed = new Common.HashTable(100, function (key) {
-                    return Utils.getHashCodeFor(key);
-                }, function (lhs, rhs) {
-                    return lhs === rhs;
-                });
+                printed = [];
             }
             var result;
             if(x === null) {
@@ -94,19 +90,19 @@ var TSLisp;
                         result += xs + '"';
                         return result;
                     } else {
-                        if(x instanceof Array) {
+                        if(Utils.isInheritedFrom(x, Common.List)) {
                             var xl = x;
-                            if(printed.contains(xl)) {
+                            if(printed.indexOf(xl) != -1) {
                                 --recLevel;
                                 if(recLevel == 0) {
                                     return "[...]";
                                 }
                             } else {
-                                printed.add(xl, true);
+                                printed.push(xl);
                             }
                             result = "[";
-                            xl.forEach(function (elem, i) {
-                                if(i != 0) {
+                            xl.each(function (elem, index) {
+                                if(index != 0) {
                                     result += ", ";
                                 }
                                 result += LL.str(elem);
@@ -159,7 +155,7 @@ var TSLisp;
         }
         LL.mapCar = function mapCar(fn, args) {
             if(!fn) {
-                throw new TypeError("Null function");
+                throw ErrorFactory.makeTypeError("Null function");
             }
             if(args == null) {
                 return null;
@@ -211,10 +207,14 @@ var TSLisp;
     var LispThrowException = (function (_super) {
         __extends(LispThrowException, _super);
         function LispThrowException(tag, value) {
-                _super.call(this, "No catcher found for (" + LL.str(tag) + " " + LL.str(value) + ")");
+                _super.call(this, Utils.substituteTemplate(LispThrowException.MSG, {
+        tag: LL.str(tag),
+        value: LL.str(value)
+    }));
             this.tag = tag;
             this.value = value;
         }
+        LispThrowException.MSG = "No handler found for ({tag} {value})";
         Object.defineProperty(LispThrowException.prototype, "Tag", {
             get: function () {
                 return this.tag;
@@ -255,6 +255,7 @@ var TSLisp;
             this.car = car;
             this.cdr = cdr;
         }
+        Cell.TMPL = "Cell({car}, {cdr})";
         Object.defineProperty(Cell.prototype, "Car", {
             get: function () {
                 return this.car;
@@ -290,9 +291,7 @@ var TSLisp;
             });
         };
         Cell.prototype.toArray = function () {
-            var j = this;
-            var result = [];
-
+            var j = this, result = [];
             while(true) {
                 if(!(j instanceof (Cell))) {
                     break;
@@ -313,16 +312,16 @@ var TSLisp;
             configurable: true
         });
         Cell.prototype.toString = function () {
-            return "Cell(" + this.car + ", " + this.cdr + ")";
+            return Utils.substituteTemplate(Cell.TMPL, this);
         };
         Cell.prototype.repr = function (printQuote, recLevel, printed) {
-            if(printed.contains(this)) {
+            if(printed.indexOf(this) != -1) {
                 --recLevel;
                 if(recLevel == 0) {
                     return "...";
                 }
             } else {
-                printed.add(this, true);
+                printed.push(this);
             }
             var kdr = this.cdr;
             if(!kdr) {
@@ -403,8 +402,9 @@ var TSLisp;
             this.offset = offset;
             this.symbol = symbol;
         }
+        Arg.FORMAT = "#{level}:{offset}:{symbol}";
         Arg.prototype.toString = function () {
-            return "#" + this.level + ":" + this.offset + ":" + this.symbol;
+            return Utils.substituteTemplate(Arg.FORMAT, this);
         };
         Arg.prototype.setValue = function (x, env) {
             for(var i = 0; i < this.level; ++i) {
@@ -425,8 +425,9 @@ var TSLisp;
         function Dummy(symbol) {
             this.symbol = symbol;
         }
+        Dummy.FORMAT = ":{symbol}:Dummy";
         Dummy.prototype.toString = function () {
-            return ":" + this.symbol + ":Dummy";
+            return Utils.substituteTemplate(Dummy.FORMAT, this);
         };
         return Dummy;
     })();
@@ -480,4 +481,3 @@ var TSLisp;
     })();
     TSLisp.Promise = Promise;    
 })(TSLisp || (TSLisp = {}));
-

@@ -9,7 +9,7 @@ var Utils;
     }
     Utils.combineHashes = combineHashes;
     function getHashCodeFor(obj) {
-        var val = obj.toString();
+        var val = obj.valueOf();
         var result;
         if(typeof val === "string") {
             result = val.charCodeAt(0);
@@ -32,5 +32,14 @@ var Utils;
         return (names.length == 1 && !names[0]) ? [] : names;
     }
     Utils.getArgumentNamesFor = getArgumentNamesFor;
+    function isInheritedFrom(obj, target) {
+        return target.prototype.isPrototypeOf(obj);
+    }
+    Utils.isInheritedFrom = isInheritedFrom;
+    function substituteTemplate(tmpl, values) {
+        return tmpl.replace(/\{(.+?)\}/g, function (str, placeholder_name) {
+            return values[placeholder_name];
+        });
+    }
+    Utils.substituteTemplate = substituteTemplate;
 })(Utils || (Utils = {}));
-

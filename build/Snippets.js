@@ -4,4 +4,3 @@ var TSLisp;
     TSLisp.PRIMES = "(setq primes\n" + "  (let (p s n)\n" + "    (defun p (l)\n" + "      (cons (car l)\n" + "            ~(p ((s (car l))\n" + "                 (cdr l)))))\n\n" + "    (defun s (p)\n" + "      (let (sp)\n" + "        (defun sp (l)\n" + "          (if (= (% (car l) p) 0)\n" + "              (sp (cdr l))\n" + "            (cons (car l)\n" + "                  ~(sp (cdr l)))))\n" + "        sp))\n\n" + "    (defun n (x)\n" + "      (cons x ~(n (+ x 1))))\n\n" + "    (p (n 2))))\n";
     TSLisp.FIBS = "(setq fibs\n" + "      (cons 1 (cons 1 ~(mapf (lambda (x) (apply + x))\n" + "                             (zip fibs (cdr fibs))))))\n";
 })(TSLisp || (TSLisp = {}));
-

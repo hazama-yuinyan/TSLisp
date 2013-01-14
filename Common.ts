@@ -1,7 +1,10 @@
-module Common
-{
+module Common{
 	/**
 	 * Implemented by classes that support a simple iteration over instances of the container.
+     * NOTE: Generally speaking, the getEnumerator method must return IEnumerator rather than Enumerator, which is a concrete
+     * implementation, in terms of Object-Oriented Programming.
+     * But due to the limitation(maybe restriction?) of TypeScript, we are forced to return a concrete class. For more info,
+     * see the comment above raw_input and char_iter in Reader.ts.
 	 */
 	export interface IEnumerable
 	{
@@ -11,7 +14,7 @@ module Common
 	/**
 	 * Implemented by classes that support a simple iteration over instances of the container.
 	 */
-	interface IEnumerator
+	export interface IEnumerator
 	{
 		moveNext() : bool;
 	}
@@ -26,7 +29,11 @@ module Common
 
 		public get Current() {return this.current;}
 
-		constructor(iterator)
+        /**
+         * Constructs a new enumerator.
+         * @param iterator {Function} A function that actually iterates over a sequence and returns an item at a time
+         */
+		constructor(iterator : () => any)
 		{
 			this.iterator = iterator;
 			this.current = undefined;
@@ -59,7 +66,7 @@ module Common
 	 * It requires keys to have toString method.
 	 */
 	export class Dictionary implements IDictionary
-	{
+    {
 		private store = {};
 		private count = 0;
 
@@ -122,20 +129,24 @@ module Common
 			var result = [];
 			this.store.forEach(function(entry){
 				if(entry){
-					for(var cur = entry; cur != null; cur = cur.next){
+					for(var cur = entry; cur != null; cur = cur.next)
 						result.push(cur.key);
-					}
 				}
 			});
 
 			return result;
 		}
 
+        /**
+         * Constructs a new hash table.
+         * @param size {number} the maximum size of entries
+         * @param hash_func {Function} A function used to convert an object to a hash value
+         * @param equals_func {Function} A custom key comparer
+         */
 		constructor(public size : number, public hash_func : (key) => number, public equals_func : (key1, key2) => bool)
 		{
-			for(var i = 0; i < size; ++i){
+			for(var i = 0; i < size; ++i)
 				this.store[i] = null;
-			}
 		}
 
 		public getCount() : number
@@ -158,6 +169,24 @@ module Common
 			this.store[val] = new_entry;
 			++this.count;
 			return true;
+		}
+
+		public addOrUpdate(key : any, data : any) : void
+		{
+			var val : number = this.hash_func(key);
+			val = val % this.size;
+
+			for(var cur = this.store[val]; cur != null; cur = cur.next){
+				if(this.equals_func(key, cur.key)){
+					cur.data = data;
+					return;
+				}
+			}
+
+			var new_entry : HashEntry = new HashEntry(key, data);
+			new_entry.next = this.store[val];
+			this.store[val] = new_entry;
+			++this.count;
 		}
 
 		public remove(key : any)
@@ -236,7 +265,7 @@ module Common
 	export interface IList extends ICollection, IEnumerable
 	{
 		add(elem);
-		each(fn : (elem : any, index? : number, arry? : any[]) => void);
+		each(fn : (elem : any, index : number, arry : any[]) => void);
 		get(index : number);
 		update(index : number, newElem : any);
 		remove(elem);
@@ -270,7 +299,7 @@ module Common
 			this.contents.push(elem);
 		}
 
-		public each(fn : (elem : any, index? : number, arry? : any[]) => void)
+		public each(fn: (elem : any, index : number, arry : any[]) => void)
 		{
 			this.contents.forEach(fn);
 		}
@@ -361,27 +390,27 @@ module Common
 	 * Advances an enumerator a cetain times.
 	 */
 	export function take(count : number, er : Common.Enumerator) : EnumeratorStore
-    {
-        var i = 0;
-        return new EnumeratorStore(
-        	new Common.Enumerator(() => {
-	           	if(i < count && er.moveNext()){
-	           	     ++i;
-	                return er.Current;
-	            }
-	        })
-	    );
-    }
+	{
+		var i = 0;
+		return new EnumeratorStore(
+			new Common.Enumerator(() => {
+				if(i < count && er.moveNext()){
+					++i;
+					return er.Current;
+				}
+			})
+		);
+	}
 
-    /**
-     * Advances an enumerator to the end.
-     */
-    export function takeAll(er : Common.Enumerator) : EnumeratorStore
-    {
-    	return new EnumeratorStore(
-    		new Common.Enumerator(() => {
-    	    	if(er.moveNext()) return er.Current;
-    	    })
-    	);
-    }
+	/**
+	 * Advances an enumerator to the end.
+	 */
+	export function takeAll(er : Common.Enumerator) : EnumeratorStore
+	{
+		return new EnumeratorStore(
+			new Common.Enumerator(() => {
+	    	    		if(er.moveNext()) return er.Current;
+	    	    	})
+	    	);
+	}
 }

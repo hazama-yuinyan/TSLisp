@@ -4,11 +4,11 @@
 ///<reference path='Common.ts' />
 ///<reference path='Utils.ts' />
 ///<reference path='LispFunctions.ts' />
+///<reference path='ErrorFactory.ts' />
 
 
 
-module TSLisp
-{
+module TSLisp{
     /**
      * The lisp interpreter implemented in TypeScript
      */
@@ -17,7 +17,7 @@ module TSLisp
         public environ : Cell = null;
         private symbols : Common.HashTable;
         private lazy : Common.HashTable;
-        private reader : Reader;
+        private console : Common.HtmlConsole;
 
         public get SymbolTable() {return this.symbols;}
 
@@ -25,12 +25,9 @@ module TSLisp
 
         public get Environment() {return this.environ;}
         
-        constructor()
+        constructor(native_read_func : () => void)
         {
-            Common.HtmlConsole.initialize();
-            Common.HtmlConsole.println("Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript." +
-                "\n\nCall the help function for more info on TSLisp.");
-            Common.HtmlConsole.instance().printPS();
+            this.console = new Common.HtmlConsole();
             this.symbols = new Common.HashTable(1000, 
                 (key) => Utils.getHashCodeFor(key),
                 (lhs, rhs) => lhs == rhs
@@ -39,7 +36,6 @@ module TSLisp
                 (key) => Utils.getHashCodeFor(key),
                 (lhs, rhs) => lhs == rhs
             );
-        	this.reader = new Reader(Common.HtmlConsole.instance());
 
             this.symbols.add(LL.S_ERROR, LL.S_ERROR);
             this.symbols.add(LL.S_T, LL.S_T);
@@ -49,7 +45,7 @@ module TSLisp
             this.symbols.add(Symbol.symbolOf("*pi*"), Math.PI);
             this.symbols.add(Symbol.symbolOf("*napier*"), Math.E);
 
-            var read_func_obj = new LispFunction(this.reader.read, "(read) : reads an S expression from the standard input", false, false);
+            var read_func_obj = new LispFunction(native_read_func, "(read) : reads an S expression from the standard input", false, false);
             this.symbols.add(Symbol.symbolOf("read"), read_func_obj);
             var list_func = LL.listFrom;
             var list_func_obj = new LispFunction(list_func, "(list a b c ...) => (a b c ...)", false, true);
@@ -57,33 +53,22 @@ module TSLisp
             this.lazy.add(list_func, true);
         }
 
-        public run(lines? : Common.IEnumerable)
+        public evaluateString(text : string)
         {
-            if(!lines) lines = Common.HtmlConsole.instance();
-
-            var interactive = lines instanceof Common.HtmlConsole;
-            var rr = new Reader(lines);
+            var lisp_expr = new Reader(Lines.fromString(text)).read();
+            return this.evaluate(lisp_expr, false);
+        }
+        
+        public evaluateStrings(lines : string)
+        {
+            var parser = new Reader(Lines.fromString(lines));
             var result = null;
             while(true){
-                try{
-                	var lisp_obj = rr.read();
-                	if(lisp_obj == LL.S_EOF){
-                        if(interactive)
-                            (<Common.HtmlConsole> lines).printPS();
-
-                        return result;
-                    }
-
-                    result = this.evaluate(lisp_obj, false);
-                    if(interactive)
-                        Common.HtmlConsole.println(LL.str(result));
-                }
-                catch(ex){
-                    if(interactive)
-                        Common.HtmlConsole.println(ex.message);
-                    else
-                        throw ex;
-                }
+                var lisp_expr = parser.read();
+                if(lisp_expr == LL.S_EOF)
+                    return result;
+                    
+                result = this.evaluate(lisp_expr, false);
             }
         }
 
@@ -138,7 +123,7 @@ module TSLisp
                     if(x instanceof Symbol){
                         return this.evalSymbol(x);
                     }else if(x instanceof Arg){
-                        return <Arg>(x).getValue(this.environ);
+                        return (<Arg> x).getValue(this.environ);
                     }else if(x instanceof Cell){
                         var xc : Cell = <Cell>x;
                         var fn = xc.car;
@@ -146,7 +131,7 @@ module TSLisp
                         if(fn == LL.S_QUOTE){
                             var kdr = <Cell>xc.cdr;
                             if(kdr == null || kdr.cdr != null)
-                                throw new EvalException("Found a bad quotation!");
+                                throw ErrorFactory.makeEvalException("Found a bad quotation!");
 
                             return kdr.car;
                         }else if(fn == LL.S_PROGN){
@@ -164,7 +149,7 @@ module TSLisp
                             return new Closure(compiled.arity, compiled.x, this.environ);
                         }else if(fn == LL.S_MACRO){
                             if(this.environ != null)
-                                throw new EvalException("Nested macro!", x);
+                                throw ErrorFactory.makeEvalException("Nested macro!", x);
 
                             var substituted = Interpreter.substituteDummyVariables(x);
                             var compiled = this.compile(substituted);
@@ -176,7 +161,7 @@ module TSLisp
                         }else if(fn == LL.S_DELAY){
                             var kdr = <Cell>xc.cdr;
                             if(kdr == null || kdr.cdr != null)
-                                throw new EvalException("Bad delay!");
+                                throw ErrorFactory.makeEvalException("Bad delay!");
 
                             return new Promise(kdr.car, this.environ, this);
                         }else{
@@ -186,7 +171,7 @@ module TSLisp
 
                             fn = this.evaluate(fn, false);
                             if(fn instanceof Promise)
-                                fn = <Promise>(fn).resolve();
+                                fn = (<Promise> fn).resolve();
                             
                             if(fn instanceof Closure){
                                 var args = this.getArgs(arg_list, false);
@@ -264,7 +249,7 @@ module TSLisp
         {
             var val = this.symbols.lookup(name);
             if(val === undefined)
-                throw new EvalException("Unbound variable", name);
+                throw ErrorFactory.createEvalException("Unbound variable", name);
 
             return val;
         }
@@ -330,7 +315,7 @@ module TSLisp
                         }
                     }
                 }else if(clause != null){
-                    throw new EvalException("Not any test clause found in cond", clause);
+                    throw ErrorFactory.createEvalException("Not any test clause found in cond", clause);
                 }
 
                 body = bc.cdr;
@@ -360,11 +345,11 @@ module TSLisp
                 var lval = c.car;
                 c = <Cell>c.cdr;
                 if(!(c instanceof Cell))
-                    throw new EvalException("Missing the right-hand-side of a SetQ form");
+                    throw ErrorFactory.createEvalException("Missing the right-hand-side of a SetQ form");
 
                 result = this.evaluate(c.car, false);
                 if(lval instanceof Symbol)
-                    this.symbols.add(lval, result);
+                    this.symbols.addOrUpdate(lval, result);
                 else if(lval instanceof Arg)
                     (<Arg> lval).setValue(result, this.environ);
                 else
@@ -376,20 +361,20 @@ module TSLisp
         {
             switch(expectedNumArgs){
             case 0:
-                throw new EvalException("No args expected", argList);
+                throw ErrorFactory.createEvalException("No args expected", argList);
 
             case 1:
-                throw new EvalException("One arg expected", argList);
+                throw ErrorFactory.createEvalException("One arg expected", argList);
 
             case 2:
-                throw new EvalException("Two args expected", argList);
+                throw ErrorFactory.createEvalException("Two args expected", argList);
             }
         }
 
         private callNative(fn : any, argList : Cell, willForce : bool)
         {
             if(!(fn instanceof LispFunction))
-                throw new EvalException("Not applicable: ", fn);
+                throw ErrorFactory.makeEvalException("Not applicable: {not_callable}", {not_callable : LL.str(fn)});
 
             var func = fn.body, has_optional = fn.has_optional;
             try{
@@ -437,8 +422,12 @@ module TSLisp
             }
             catch(ex){
                 fn = this.symbols.findKey(fn);
-                throw new EvalException(ex.name + ": " + ex.message + " -- " + fn + " " +
-                    LL.str(argList), ex);
+                throw ErrorFactory.makeEvalException("{name}: {message} -- {func_name} {args}", {
+                    name : ex.name,
+                    message : ex.message,
+                    func_name : fn,
+                    args : LL.str(argList)
+                });
             }
         }
 
@@ -477,7 +466,7 @@ module TSLisp
         {
             var body : Cell = <Cell>fn.body;
             if(!(body instanceof Cell))
-                throw new EvalException("Missing function body!");
+                throw ErrorFactory.createEvalException("Missing function body!");
 
             var arity : number = fn.arity;
             if(arity < 0){  //if the function has a &rest parameter...
@@ -492,7 +481,7 @@ module TSLisp
             }
 
             if(arity != args.getCount())
-                throw new EvalException("The number of arguments doesn't match that of parameters");
+                throw ErrorFactory.createEvalException("The number of arguments doesn't match that of parameters");
 
             var old_env : Cell = this.environ;
             this.environ = new Cell(args, fn.env);
@@ -532,7 +521,7 @@ module TSLisp
 
             var j : Cell = <Cell>x.cdr;
             if(!(j instanceof Cell))
-                throw new EvalException("Missing the argument list and the body!");
+                throw ErrorFactory.createEvalException("Missing the argument list and the body!");
 
             var result = Interpreter.makeArgTable(j.car);
             var arity : number = result.table.getCount();
@@ -541,7 +530,7 @@ module TSLisp
 
             j = <Cell>j.cdr;
             if(!(j instanceof Cell))
-                throw new EvalException("Missing the body!");
+                throw ErrorFactory.createEvalException("Missing the body!");
 
             j = <Cell>Interpreter.scanArgs(j, result.table);
             j = <Cell>this.expandMacros(j, LL.MAX_MACRO_EXPS);
@@ -605,7 +594,7 @@ module TSLisp
             while(i instanceof Cell){
                 var j : Object = (<Cell> i).car;
                 if(result.has_rest)
-                    throw new EvalException("Can not declare rest parameters multiple times!", j);
+                    throw ErrorFactory.createEvalException("Can not declare rest parameters multiple times!", j);
 
                 if(j == LL.S_REST){
                     i = <Cell>(i).cdr;
@@ -705,5 +694,5 @@ module TSLisp
         private evalUnwindProtect(xc : Cell){}
     }
 
-    export var interp = new Interpreter();
+    export var interp : Interpreter = null;
 }
