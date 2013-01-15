@@ -169,8 +169,10 @@ module TSLisp{
          */
     	public reset()
     	{
-    		this.state = "eager";
-            this.is_eof = false;
+            if(this.state != "don't_move"){
+    		    this.state = "eager";
+                this.is_eof = false;
+            }
     	}
 
         public getEnumerator() : Common.Enumerator

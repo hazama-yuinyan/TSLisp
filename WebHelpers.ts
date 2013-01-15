@@ -1,5 +1,6 @@
 ///<reference path='jquery.d.ts' />
 ///<reference path='jqconsole.d.ts' />
+///<reference path='Utils.ts' />
 ///<reference path='ErrorFactory.ts' />
 
 
@@ -157,20 +158,17 @@ module Common{
     
     export module HtmlConsole{
         var console : any = null;
-        var WELCOME_MSG : string = "Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript\n\nCall the help function for more info on TSLisp.\n";
         var use_my_console = false;
         
-        export function initialize(_use_my_console : bool)
+        export function initialize(_use_my_console : bool, header_msg : string)
         {
             use_my_console = _use_my_console;
             if(!use_my_console){
-                console = $("#console").jqconsole(WELCOME_MSG, ">>> ", "... ");
-                console.RegisterMatching('{', '}', "brace");
-                console.RegisterMatching('[', ']', "brackets");
+                console = $("#console").jqconsole(header_msg, ">>> ", "... ");
                 console.RegisterMatching('(', ')', "paren");
             }else{
                 console = MyHtmlConsole;
-                console.println(WELCOME_MSG);
+                console.println(header_msg);
                 console.printPS();
             }
         }
@@ -189,6 +187,12 @@ module Common{
                 console.Write(text + "\n", cls);
             else
                 console.println(text);
+        }
+        
+        export function printFormatted(format : string, values? : Object, cls? : string) : void
+        {
+            var formatted = Utils.substituteTemplate(format, values);
+            println(formatted, cls);
         }
         
         export function prompt(callback : (input) => void, continue_callback? : (input) => any) : void

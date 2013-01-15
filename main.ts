@@ -6,7 +6,8 @@
 
 
 (function(){
-    Common.HtmlConsole.initialize(false);
+    Common.HtmlConsole.initialize(false, "Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript\n\n" +
+        "Call the help function for more info on TSLisp.\n");
     var html_console = Common.HtmlConsole;
     var interp = TSLisp.interp = new TSLisp.Interpreter(() => {
         var ret = new TSLisp.ReadPlaceholder(null);

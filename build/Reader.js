@@ -155,8 +155,10 @@ var TSLisp;
             configurable: true
         });
         Lexer.prototype.reset = function () {
-            this.state = "eager";
-            this.is_eof = false;
+            if(this.state != "don't_move") {
+                this.state = "eager";
+                this.is_eof = false;
+            }
         };
         Lexer.prototype.getEnumerator = function () {
             var _this = this;

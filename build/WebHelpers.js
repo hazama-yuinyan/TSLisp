@@ -120,18 +120,15 @@ var Common;
     var MyHtmlConsole = Common.MyHtmlConsole;
     (function (HtmlConsole) {
         var console = null;
-        var WELCOME_MSG = "Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript\n\nCall the help function for more info on TSLisp.\n";
         var use_my_console = false;
-        function initialize(_use_my_console) {
+        function initialize(_use_my_console, header_msg) {
             use_my_console = _use_my_console;
             if(!use_my_console) {
-                console = $("#console").jqconsole(WELCOME_MSG, ">>> ", "... ");
-                console.RegisterMatching('{', '}', "brace");
-                console.RegisterMatching('[', ']', "brackets");
+                console = $("#console").jqconsole(header_msg, ">>> ", "... ");
                 console.RegisterMatching('(', ')', "paren");
             } else {
                 console = MyHtmlConsole;
-                console.println(WELCOME_MSG);
+                console.println(header_msg);
                 console.printPS();
             }
         }
@@ -152,6 +149,11 @@ var Common;
             }
         }
         HtmlConsole.println = println;
+        function printFormatted(format, values, cls) {
+            var formatted = Utils.substituteTemplate(format, values);
+            println(formatted, cls);
+        }
+        HtmlConsole.printFormatted = printFormatted;
         function prompt(callback, continue_callback) {
             if(use_my_console) {
                 console.printPS();

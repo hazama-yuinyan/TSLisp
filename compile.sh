@@ -4,11 +4,13 @@
 if [ "$1" = "test" ] ; then
     BUILD_DIR="tests/build/"
     MAIN_FILE="tests/TestMain.ts"
-    SOURCES=`find -maxdepth 1 -name "tests/*.ts`
+    TARGET_DIR="tests/"
+    SOURCES=`find $TARGET_DIR -maxdepth 1 -name "*.ts"`
 else
-    BUILD_DIR="./build/"
+    BUILD_DIR="build/"
     MAIN_FILE="main.ts"
-    SOURCES=`find -maxdepth 1 -name "*.ts"`
+    TARGET_DIR="."
+    SOURCES=`find $TARGET_DIR -maxdepth 1 -name "*.ts"`
 fi
 
 echo "I'm compiling the following files:${SOURCES[@]}"
@@ -24,11 +26,7 @@ fi
 echo "All files compiled"
 echo "Now moving generated files to the build directory..."
 
-if [ "$1" = "test" ] ; then
-    TARGETS=(`find -maxdepth 1 -name "tests/*.js"`)
-else
-    TARGETS=(`find -maxdepth 1 -name "*.js"`)
-fi
+TARGETS=(`find $TARGET_DIR -maxdepth 1 -name "*.js"`)
 
 echo "First clean the build directory..."
 rm "$BUILD_DIR*"
