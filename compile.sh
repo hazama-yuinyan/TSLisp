@@ -1,9 +1,15 @@
 #!/bin/bash
 
 
-BUILD_DIR="./build/"
-MAIN_FILE="main.ts"
-SOURCES=`find -maxdepth 1 -name "*.ts"`
+if [ "$1" = "test" ] ; then
+    BUILD_DIR="tests/build/"
+    MAIN_FILE="tests/TestMain.ts"
+    SOURCES=`find -maxdepth 1 -name "tests/*.ts`
+else
+    BUILD_DIR="./build/"
+    MAIN_FILE="main.ts"
+    SOURCES=`find -maxdepth 1 -name "*.ts"`
+fi
 
 echo "I'm compiling the following files:${SOURCES[@]}"
 
@@ -18,7 +24,11 @@ fi
 echo "All files compiled"
 echo "Now moving generated files to the build directory..."
 
-TARGETS=(`find -maxdepth 1 -name "*.js"`)
+if [ "$1" = "test" ] ; then
+    TARGETS=(`find -maxdepth 1 -name "tests/*.js"`)
+else
+    TARGETS=(`find -maxdepth 1 -name "*.js"`)
+fi
 
 echo "First clean the build directory..."
 rm "$BUILD_DIR*"

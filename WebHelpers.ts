@@ -11,33 +11,25 @@ interface JQuery
 
 module Common{
 	/**
-	 * Class for emulating the console on the Web
+	 * Module for emulating the console on the Web
 	 */
-	export class MyHtmlConsole
-	{
-		private buffer : string = "";
-		private history : string[] = [];
-		private cur_history_num : number = 0;
-		private primary : bool = true;
-        private prompt_callback : (input : string) => void  = null;
-		private console_elem : JQuery;
-		private console_text : string = "|";
-		private cursor_pos : number = 0;
-		private static inst : MyHtmlConsole = null;
-		private static ps : string = "> ";
+	export module MyHtmlConsole{
+		var buffer : string = "";
+		var history : string[] = [];
+		var cur_history_num : number = 0;
+		var primary : bool = true;
+        var prompt_callback : (input : string) => void  = null;
+		var console_elem : JQuery;
+		var console_text : string = "|";
+		var cursor_pos : number = 0;
+		var ps : string = "> ";
         
-        constructor()
+        export function initialize()
         {
-            $(document).bind("keypress", this.onKeyPress);
-    		$(document).bind("keydown", this.onKeyDown);
-            this.console_elem = $("#console");
+            $(document).bind("keypress", onKeyPress);
+    		$(document).bind("keydown", onKeyDown);
+            console_elem = $("#console");
         }
-
-		public static getInstance()
-		{
-            if(!MyHtmlConsole.inst) MyHtmlConsole.inst = new MyHtmlConsole();
-			return MyHtmlConsole.inst;
-		}
 
 		/*public getEnumerator() : Enumerator
 		{
@@ -60,180 +52,169 @@ module Common{
 			});
 		}*/
 
-		public printPS()
+		export function printPS()
 		{
-			if(this.primary)
-				MyHtmlConsole.print(MyHtmlConsole.ps);
+			if(primary)
+				print(ps);
 		}
 
-		public reset()
+		export function reset()
 		{
-			//this.primary = true;
+			//primary = true;
 		}
 
-		public update()
+		function update()
 		{
-			MyHtmlConsole.print(HtmlConsole.inst.buffer);
+			print(buffer);
 		}
 
-		public static print(str : string)
+		export function print(str : string)
 		{
-            var inst = MyHtmlConsole.getInstance();
-			inst.console_text = inst.console_text.substring(0, inst.cursor_pos) + str;
-			inst.cursor_pos += str.length;
-			inst.console_text += "|";
-			$(inst.console_elem).text(inst.console_text);
+			console_text = console_text.substring(0, cursor_pos) + str;
+			cursor_pos += str.length;
+			console_text += "|";
+			$(console_elem).text(console_text);
 		}
 
-		public static println(text : string)
+		export function println(text : string)
 		{
-            var inst = MyHtmlConsole.getInstance();
-			inst.console_text = inst.console_text.substr(0, inst.cursor_pos) + text + "\n";
+			console_text = console_text.substr(0, cursor_pos) + text + "\n";
 
-			inst.cursor_pos = inst.console_text.length;
-			inst.console_text += "|";
-			$(inst.console_elem).text(inst.console_text);
+			cursor_pos = console_text.length;
+			console_text += "|";
+			$(console_elem).text(console_text);
 		}
 
-		public clearCurrentLine()
+		export function clearCurrentLine()
 		{
-			var tmp_cursor_pos = this.cursor_pos;
-			var ps = MyHtmlConsole.ps;
+			var tmp_cursor_pos = cursor_pos;
 			while(true){
-				if(this.console_text.substring(tmp_cursor_pos - ps.length, tmp_cursor_pos) === ps) break;
+				if(console_text.substring(tmp_cursor_pos - ps.length, tmp_cursor_pos) === ps) break;
 				
 				--tmp_cursor_pos;
 			}
-			this.console_text = this.console_text.substring(0, tmp_cursor_pos) + "|";
-			this.cursor_pos = tmp_cursor_pos;
-			$(this.console_elem).text(this.console_text);
+			console_text = console_text.substring(0, tmp_cursor_pos) + "|";
+			cursor_pos = tmp_cursor_pos;
+			$(console_elem).text(console_text);
 		}
         
-        public setPromptCallback(callback)
+        export function setPromptCallback(callback)
         {
-            this.prompt_callback = callback;
+            prompt_callback = callback;
         }
 
-		private onKeyPress(e : KeyboardEvent)
+		function onKeyPress(e : KeyboardEvent)
 		{
 			switch(e.keyCode){
 			case 13:	//The return key
-				this.primary = false;
-				this.buffer += "\n";
-				MyHtmlConsole.print("\n");
-                this.prompt_callback(this.buffer);
+				primary = false;
+				buffer += "\n";
+				print("\n");
+                prompt_callback(buffer);
 
 				if(!e.shiftKey){
-					this.history.push(this.buffer.substring(0, this.buffer.length - 1));
-					this.cur_history_num = this.history.length;
+					history.push(buffer.substring(0, buffer.length - 1));
+					cur_history_num = history.length;
 				}
 				break;
 
 			default:
 				var chara = String.fromCharCode(e.keyCode);
-				this.buffer = this.buffer.concat(chara);
-				MyHtmlConsole.print(this.buffer.substr(-1));
+				buffer = buffer.concat(chara);
+				print(buffer.substr(-1));
 			}
 		}
 
-		private onKeyDown(e : KeyboardEvent)
+		function onKeyDown(e : KeyboardEvent)
 		{
 			switch(e.keyCode){
 			case 8:		//The Backspace key
-				this.buffer = this.buffer.substr(0, this.buffer.length - 1);
-				this.clearCurrentLine();
-				MyHtmlConsole.print(this.buffer);
+				buffer = buffer.substr(0, buffer.length - 1);
+				clearCurrentLine();
+				print(buffer);
 				break;
 				
 			case 38:	//The up arrow key
 				e.preventDefault();
-				--this.cur_history_num;
-				if(this.cur_history_num < 0) this.cur_history_num = this.history.length - 1;
-				this.buffer = this.history[this.cur_history_num];
-				this.clearCurrentLine();
-				this.update();
+				--cur_history_num;
+				if(cur_history_num < 0) cur_history_num = history.length - 1;
+				buffer = history[cur_history_num];
+				clearCurrentLine();
+				update();
 				break;
 
 			case 40:	//The down arrow key
 				e.preventDefault();
-				++this.cur_history_num;
-				if(this.cur_history_num >= this.history.length) this.cur_history_num = 0;
-				this.buffer = this.history[this.cur_history_num];
-				this.clearCurrentLine();
-				this.update();
+				++cur_history_num;
+				if(cur_history_num >= history.length) cur_history_num = 0;
+				buffer = history[cur_history_num];
+				clearCurrentLine();
+				update();
 				break;
 			}
 		}
 	}
     
-    export class HtmlConsole
-    {
-        private static console : any = null;
-        private static inst = null;
-        private static WELCOME_MSG : string = "Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript\n\nCall the help function for more info on TSLisp.\n";
-        private static use_my_console = false;
+    export module HtmlConsole{
+        var console : any = null;
+        var WELCOME_MSG : string = "Welcome to the TS Lisp console!\nThis is a version of Lisp interpreter implemented in TypeScript\n\nCall the help function for more info on TSLisp.\n";
+        var use_my_console = false;
         
-        public static initialize(use_my_console : bool)
+        export function initialize(_use_my_console : bool)
         {
-            if(!HtmlConsole.inst) HtmlConsole.inst = new HtmlConsole();
-            HtmlConsole.use_my_console = use_my_console;
+            use_my_console = _use_my_console;
             if(!use_my_console){
-                this.console = $("#console").jqconsole(HtmlConsole.WELCOME_MSG, ">>> ", "... ");
-                this.console.RegisterMatching('{', '}', "brace");
-                this.console.RegisterMatching('[', ']', "brackets");
-                this.console.RegisterMatching('(', ')', "paren");
+                console = $("#console").jqconsole(WELCOME_MSG, ">>> ", "... ");
+                console.RegisterMatching('{', '}', "brace");
+                console.RegisterMatching('[', ']', "brackets");
+                console.RegisterMatching('(', ')', "paren");
             }else{
-                this.console = MyHtmlConsole.getInstance();
-                MyHtmlConsole.println(HtmlConsole.WELCOME_MSG);
-                this.console.printPS();
+                console = MyHtmlConsole;
+                console.println(WELCOME_MSG);
+                console.printPS();
             }
         }
         
-        public static getInstance() : HtmlConsole
+        export function print(text : string, cls? : string) : void
         {
-            return inst;
-        }
-        
-        public static print(text : string, cls? : string) : void
-        {
-            if(!HtmlConsole.use_my_console)
-                this.console.Write(text, cls);
+            if(!use_my_console)
+                console.Write(text, cls);
             else
-                MyHtmlConsole.print(text);
+                console.print(text);
         }
         
-        public static println(text : string, cls? : string) : void
+        export function println(text : string, cls? : string) : void
         {
-            if(!HtmlConsole.use_my_console)
-                this.console.Write(text + "\n", cls);
+            if(!use_my_console)
+                console.Write(text + "\n", cls);
             else
-                MyHtmlConsole.println(text);
+                console.println(text);
         }
         
-        public prompt(callback : (input) => void, continue_callback? : (input) => any) : void
+        export function prompt(callback : (input) => void, continue_callback? : (input) => any) : void
         {
-            if(HtmlConsole.use_my_console){
-                HtmlConsole.console.printPS();
-                HtmlConsole.console.setPromptCallback(callback);
+            if(use_my_console){
+                console.printPS();
+                console.setPromptCallback(callback);
             }else{
-                HtmlConsole.console.Prompt(true, callback, continue_callback);
+                console.Prompt(true, callback, continue_callback);
             }
         }
         
-        public abortPrompt() : void
+        export function abortPrompt() : void
         {
-            if(HtmlConsole.use_my_console)
+            if(use_my_console)
                 throw ErrorFactory.makeError("Not implemented!");
             else
-                HtmlConsole.console.AbortPrompt();
+                console.AbortPrompt();
         }
         
-        public input(input_callback : (input) => void) : void
+        export function input(input_callback : (input) => void) : void
         {
-            if(HtmlConsole.use_my_console)
+            if(use_my_console)
                 throw ErrorFactory.makeError("Not implemented!");
             else
-                HtmlConsole.console.Input(input_callback);
+                console.Input(input_callback);
         }
     }
 }

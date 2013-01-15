@@ -40,7 +40,7 @@ var TSLisp;
                 return (x == y) ? TSLisp.LL.S_T : null;
             },
             is_lazy: false,
-            help_msg: "(eq x y) => t; if x and y refer to the same object, otherwise nil"
+            help_msg: "(eq x y) => t; if x and y refer to the same object, otherwise nil(using the JavaScript's loose equal operator '==')"
         }, 
         {
             stringp: function (x) {
@@ -229,7 +229,7 @@ var TSLisp;
                 return (lhs === rhs) ? TSLisp.LL.S_T : null;
             },
             is_lazy: false,
-            help_msg: "(eql a b) => t; if a and b are the same number, string or reference"
+            help_msg: "(eql a b) => t; if a and b are the same number, string or reference(using the JavaScript's strict equal operator '===')"
         }, 
         {
             "eval": function (exp) {
@@ -278,17 +278,29 @@ var TSLisp;
         }, 
         {
             "ts-get-property": function (args) {
+                var target = args.get(0);
+                var result = target, len = args.getCount();
+                for(var i = 1; i < len; ++i) {
+                    result = result[args.get(i).toString()];
+                }
+                return result;
             },
             is_lazy: false,
             accepts_variable_args: true,
-            help_msg: "(ts-get-property)"
+            help_msg: "(ts-get-property target property-name...) => the property of the object 'target'\n" + "e.g. Consider we have the following object\n" + '   var obj = {name : "a", nested_array : [1, 3, 5, 7, {another_nested : [2, 4, 6]}]}\n' + "   and a call '(ts-get-property obj 'nested_array 'another_nested 3)' returns '6'\n" + "INFO: The property-name arguments can be either symbols or strings."
         }, 
         {
             "ts-set-property": function (args) {
+                var target = args.get(0), new_prop = args.get(1), len = args.getCount();
+                for(var i = 2; i < len - 1; ++i) {
+                    target = target[args.get(i).toString()];
+                }
+                target[args.get(len - 1).toString()] = new_prop;
+                return new_prop;
             },
             is_lazy: false,
             accepts_variable_args: true,
-            help_msg: "(ts-set-property)"
+            help_msg: "(ts-set-property target new-prop property-name...) : set the property of 'target' to 'new-prop'\n" + "e.g. Consider we have the following object\n" + '   var obj = {name : "a", nested_array : [1, 3, 5, 7, {another_nested : [2, 4, 6]}]}\n' + "   and a call '(ts-set-property obj 8 'nested_array 'another_nested 2)' will change the object to\n" + '   {name : "a", nested_array : [1, 3, 5, 7, {another_nested : [2, 8, 6]}]}\n' + "INFO: The property-name arguments can be either symbols or strings."
         }, 
         {
             "ts-self": function () {
@@ -320,13 +332,13 @@ var TSLisp;
                         Common.HtmlConsole.println(func_obj.help_msg);
                     } else {
                         if(func_obj.body) {
-                            Common.HtmlConsole.println(Utils.substituteTemplate('The symbol "{arg}" doesn\'t refer to a function!', {
+                            throw ErrorFactory.makeEvalException('The symbol "{arg}" doesn\'t refer to a function!', {
                                 arg: arg.toString()
-                            }));
+                            });
                         } else {
-                            Common.HtmlConsole.println(Utils.substituteTemplate('The target function "{arg}" doesn\'t seem to have help message.', {
+                            throw ErrorFactory.makeEvalException('The target function "{arg}" doesn\'t seem to have help message.', {
                                 arg: arg.toString()
-                            }));
+                            });
                         }
                     }
                 }
@@ -342,7 +354,7 @@ var TSLisp;
                     throw ErrorFactory.createEvalException("This function can not take arguments other than a string!");
                 }
                 name = name.toUpperCase();
-                var target = TSLisp[name];
+                var target = TSLisp.Snippets[name];
                 if(target) {
                     var old_env = TSLisp.interp.Environment;
                     TSLisp.interp.Environment = null;
@@ -519,5 +531,5 @@ var TSLisp;
             help_msg: "(degrees-to-radians a) => the angle in radians converted from the argument"
         }
     ];
-    var help_str = "TypeScript Lisp {version}                                    Oct. 28 2012\n" + "                                            Last modified at Jan. 14 2013\n\n" + "A small Lisp implementation in TypeScript\n\n" + "TS Lisp uses the following objects as Lisp values:\n\n" + "  numbers and strings => JavaScript's primitive values(and objects)\n" + "  nil                 => null\n" + "  symbols             => Symbol class objects\n" + "  Cons cells          => Cell class objects\n\n" + "Since the Cell class implements IEnumerable interface, which is similar to the one in C#\n" + "(see Common.ts for more info), you can enumerate it fairly easily.\n\n" + "Characteristics:\n" + "* It's basically a subset of Emacs Lisp but it uses static scope instead of dynamic.\n" + "* It'll always do tail call optimization.\n" + "* The symbol '*version*' refers to a list whose car is the version number and cdr is the platform name\n" + "  on which it is running.\n" + "* The subtract function '-' can take more than zero arguments(when only one argument is supplied it works as the unary operator '-').\n" + "* The divide function '/' can take more than one argument.\n" + "* (delay x) constructs a Promise object as in Scheme, and it can be shortened to '~x'.\n" + "  The built-in functions and conditional expressions implicitly resolve them.\n" + "* The (read) function returns the EOF symbol when it encounters EOF.\n" + "* Evaluating (lambda ...) yields a function whose parameters are \"compiled\".\n" + "* The form (macro ...) can only be evaluated in the global scope and it yields a Macro object.\n" + "* In the form (macro ...), symbols beginning with '$' are cosidered to be dummy symbols.\n" + "  Dummy symbols are self-evaluating and the \"eq\" function returns t only when it is called in the macro.\n" + "* C-like escape sequences(such as \"\\n\") can be used in the string literal.\n" + "* The back-quotes, commas and comma-ats are resolved when reading.\n" + "  e.g. \"'`((,a b) ,c ,@d)\" => \"(cons (list a 'b) (cons c d))\"\n" + "* Native functions can have optional parameters like the built-in function \"help\" does only if they take, at most, two parameters.\n" + "Note: Most of the implementation is taken from the following web site; http://www.oki-osk.jp/esc/llsp/v8.html\n" + "(The above web site is written only in Japanese)\n\n" + "Notations used in the help messages of native functions:\n" + "Here I will explain the notations used in the help messages of native functions.\n\n" + "Above all I use the word \"Native function\" to mean the functions that are written in TypeScript.\n" + "And those functions are named in the following list, so see it to ensure which one is native and which is not.\n\n" + "Here are some typical function descriptions. And I will explain the notations through these.\n" + "  (foo x y [z]) => x + y or z - x + y(when z is supplied)\n" + "  (barp x) => t; if x is the string \"bar\", otherwise nil\n" + "  (bar (x y...)) : print x y ...\n" + "The first description reads \"function 'foo' has 2 or 3 parameters(since z is optional) and it evaluates to 'x + y', when 2 arguments supplied, or 'z - x + y', when 3 arguments supplied.\"\n" + "The second reads \"function 'barp' has only 1 parameter and it returns the symbol 't' if the argument is the string 'bar', otherwise returns nil.\"\n" + "Generally descriptions of predicate functions, which are the functions that test some conditions against the arguments and " + "return 't' if the test succeeds, or if the test fails, return 'nil', will take this form.\n" + "And the third reads \"function 'bar' takes a list and print the elements in the order the list have the elements.\"\n" + "Lists as arguments can usually have as many elements as you would like, unless they are described otherwise.\n" + "And, as you may see from the third example, a colon ':' indicates that the function returns nothing or nothing useful " + "for later computation and therefore can be considered to only has side-effects.\n\n" + "Special forms:\n" + "quote, progn, cond, setq, lambda, macro, delay\n" + "Built-in functions:\n" + "car, cdr, cons, atom, numberp, stringp, eq, eql, list\n" + "prin1, princ, terpri, read, +, -, *, /, %, <\n" + "eval, apply, force, replaca, replacd, throw, mapcar, mapc, length\n" + "ts-self\n" + "dump, help, load-sample\n" + "abs, acos, asin, atan, ceil, cos, exp, floor, log, max, min\n" + "pow, random, round, sin, sqrt, tan, radians-to-degrees, degrees-to-radians\n" + "Predefined variables:\n" + "*error*, *version*, *eof*, t\n" + "Predefined constants:\n" + "*pi*, *napier*";
+    var help_str = "TypeScript Lisp {version}                                    Oct. 28 2012\n" + "                                            Last modified at Jan. 14 2013\n\n" + "A small Lisp implementation in TypeScript\n\n" + "TS Lisp uses the following objects as Lisp values:\n\n" + "  numbers and strings => JavaScript's primitive values(and objects)\n" + "  nil                 => null\n" + "  symbols             => Symbol class objects\n" + "  Cons cells          => Cell class objects\n\n" + "Since the Cell class implements IEnumerable interface, which is similar to the one in C#\n" + "(see Common.ts for more info), you can enumerate it fairly easily.\n\n" + "Characteristics:\n" + "* It's basically a subset of Emacs Lisp but it uses static scope instead of dynamic.\n" + "* It'll always do tail call optimization.\n" + "* The symbol '*version*' refers to a list whose car is the version number and cdr is the platform name\n" + "  on which it is running.\n" + "* The subtract function '-' can take more than zero arguments(when only one argument is supplied it works as the unary operator '-').\n" + "* The divide function '/' can take more than one argument.\n" + "* (delay x) constructs a Promise object as in Scheme, and it can be shortened to '~x'.\n" + "  The built-in functions and conditional expressions implicitly resolve them.\n" + "* The (read) function returns the EOF symbol when it encounters EOF.\n" + "* Evaluating (lambda ...) yields a function whose parameters are \"compiled\".\n" + "* The form (macro ...) can only be evaluated in the global scope and it yields a Macro object.\n" + "* In the form (macro ...), symbols beginning with '$' are cosidered to be dummy symbols.\n" + "  Dummy symbols are self-evaluating and the \"eq\" function returns t only when it is called in the macro.\n" + "* C-like escape sequences(such as \"\\n\") can be used in the string literal.\n" + "* The back-quotes, commas and comma-ats are resolved when reading.\n" + "  e.g. \"'`((,a b) ,c ,@d)\" => \"(cons (list a 'b) (cons c d))\"\n" + "* Native functions can have optional parameters like the built-in function \"help\" does only if they take, at most, two parameters.\n" + "Note: Most of the implementation is taken from the following web site; http://www.oki-osk.jp/esc/llsp/v8.html\n" + "(The above web site is written only in Japanese)\n\n" + "Notations used in the help messages of native functions:\n" + "Here I will explain the notations used in the help messages of native functions.\n\n" + "Above all I use the word \"Native function\" to mean the functions that are written in TypeScript.\n" + "And those functions are named in the following list, so see it to ensure which one is native and which is not.\n\n" + "Here are some typical function descriptions. And I will explain the notations through these.\n" + "  (foo x y [z]) => x + y or z - x + y(when z is supplied)\n" + "  (barp x) => t; if x is the string \"bar\", otherwise nil\n" + "  (bar (x y...)) : print x y ...\n" + "The first description reads \"function 'foo' has 2 or 3 parameters(since z is optional) and it evaluates to 'x + y', when 2 arguments supplied, or 'z - x + y', when 3 arguments supplied.\"\n" + "The second reads \"function 'barp' has only 1 parameter and it returns the symbol 't' if the argument is the string 'bar', otherwise returns nil.\"\n" + "Generally descriptions of predicate functions, which are the functions that test some conditions against the arguments and " + "return 't' if the test succeeds, or if the test fails, return 'nil', will take this form.\n" + "And the third reads \"function 'bar' takes a list and print the elements in the order the list have the elements.\"\n" + "Lists as arguments can usually have as many elements as you would like, unless they are described otherwise.\n" + "And, as you may see from the third example, a colon ':' indicates that the function returns nothing or nothing useful " + "for later computation and therefore can be considered to only has side-effects.\n\n" + "Special forms:\n" + "quote, progn, cond, setq, lambda, macro, delay\n" + "Built-in functions:\n" + "car, cdr, cons, atom, numberp, stringp, eq, eql, list\n" + "prin1, princ, terpri, read, +, -, *, /, %, <\n" + "eval, apply, force, replaca, replacd, throw, mapcar, mapc, length\n" + "ts-get-property, ts-set-property, ts-self\n" + "dump, help, load-sample\n" + "abs, acos, asin, atan, ceil, cos, exp, floor, log, max, min\n" + "pow, random, round, sin, sqrt, tan, radians-to-degrees, degrees-to-radians\n" + "Predefined variables:\n" + "*error*, *version*, *eof*, t\n" + "Predefined constants:\n" + "*pi*, *napier*";
 })(TSLisp || (TSLisp = {}));

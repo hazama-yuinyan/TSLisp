@@ -504,4 +504,17 @@ module TSLisp{
             return this.exp;
         }
     }
+    
+    /**
+     * The placeholder the built-in function 'read' returns.
+     */
+    export class ReadPlaceholder
+    {
+        constructor(public expr : any) {}
+        
+        public toString() : string
+        {
+            return LL.str(this.expr);
+        }
+    }
 }

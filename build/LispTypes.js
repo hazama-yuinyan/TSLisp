@@ -480,4 +480,14 @@ var TSLisp;
         return Promise;
     })();
     TSLisp.Promise = Promise;    
+    var ReadPlaceholder = (function () {
+        function ReadPlaceholder(expr) {
+            this.expr = expr;
+        }
+        ReadPlaceholder.prototype.toString = function () {
+            return LL.str(this.expr);
+        };
+        return ReadPlaceholder;
+    })();
+    TSLisp.ReadPlaceholder = ReadPlaceholder;    
 })(TSLisp || (TSLisp = {}));

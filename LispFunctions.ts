@@ -13,7 +13,7 @@
  */
 
 module TSLisp{
-	function arithmeticAdd(lhs, rhs){
+	function arithmeticAdd(lhs : number, rhs : number) : number{
 		if(typeof lhs === "string" || typeof rhs === "string")
 			throw ErrorFactory.makeTypeError("Can not add number to string or vice-versa!\nUse add function!");
 
@@ -54,7 +54,7 @@ module TSLisp{
 				return (x == y) ? LL.S_T : null;
 			},
 			is_lazy : false,
-			help_msg : "(eq x y) => t; if x and y refer to the same object, otherwise nil"
+			help_msg : "(eq x y) => t; if x and y refer to the same object, otherwise nil(using the JavaScript's loose equal operator '==')"
 		},
 		{
 			stringp : function(x){
@@ -238,7 +238,7 @@ module TSLisp{
 				return (lhs === rhs) ? LL.S_T : null;
 			},
 			is_lazy : false,
-			help_msg : "(eql a b) => t; if a and b are the same number, string or reference"
+			help_msg : "(eql a b) => t; if a and b are the same number, string or reference(using the JavaScript's strict equal operator '===')"
 		},
 		{
 			"eval" : function(exp){
@@ -284,17 +284,38 @@ module TSLisp{
 		},
 		{
 			"ts-get-property" : function(args : Common.IList){
+                var target = args.get(0);
+                var result = target, len = args.getCount();
+                for(var i = 1; i < len; ++i)
+                    result = result[args.get(i).toString()];
+                    
+                return result;
 			},
 			is_lazy : false,
 			accepts_variable_args : true,
-			help_msg : "(ts-get-property)"
+			help_msg : "(ts-get-property target property-name...) => the property of the object 'target'\n" +
+                "e.g. Consider we have the following object\n" +
+                '   var obj = {name : "a", nested_array : [1, 3, 5, 7, {another_nested : [2, 4, 6]}]}\n' +
+                "   and a call '(ts-get-property obj 'nested_array 'another_nested 3)' returns '6'\n" +
+                "INFO: The property-name arguments can be either symbols or strings."
 		},
 		{
 			"ts-set-property" : function(args : Common.IList){
+                var target = args.get(0), new_prop = args.get(1), len = args.getCount();
+                for(var i = 2; i < len - 1; ++i)
+                    target = target[args.get(i).toString()];
+                    
+                target[args.get(len - 1).toString()] = new_prop;
+                return new_prop;
 			},
 			is_lazy : false,
 			accepts_variable_args : true,
-			help_msg : "(ts-set-property)"
+			help_msg : "(ts-set-property target new-prop property-name...) : set the property of 'target' to 'new-prop'\n" +
+                "e.g. Consider we have the following object\n" +
+                '   var obj = {name : "a", nested_array : [1, 3, 5, 7, {another_nested : [2, 4, 6]}]}\n' +
+                "   and a call '(ts-set-property obj 8 'nested_array 'another_nested 2)' will change the object to\n" +
+                '   {name : "a", nested_array : [1, 3, 5, 7, {another_nested : [2, 8, 6]}]}\n' +
+                "INFO: The property-name arguments can be either symbols or strings."
 		},
 		{
 			"ts-self" : function(){
@@ -323,18 +344,17 @@ module TSLisp{
 					if(func_obj.help_msg)
 						Common.HtmlConsole.println(func_obj.help_msg);
 					else{
-						if(func_obj.body)
-							Common.HtmlConsole.println(
-                                Utils.substituteTemplate('The symbol "{arg}" doesn\'t refer to a function!',
-                                    {arg : arg.toString()}
-                                )
+						if(func_obj.body){
+							throw ErrorFactory.makeEvalException(
+                                'The symbol "{arg}" doesn\'t refer to a function!',
+                                {arg : arg.toString()}
                             );
-						else
-							Common.HtmlConsole.println(
-                                Utils.substituteTemplate('The target function "{arg}" doesn\'t seem to have help message.',
-                                    {arg : arg.toString()}
-                                )
+						}else{
+							throw ErrorFactory.makeEvalException(
+                                'The target function "{arg}" doesn\'t seem to have help message.',
+                                {arg : arg.toString()}
                             );
+						}
 					}
 				}
 				return null;
@@ -348,7 +368,7 @@ module TSLisp{
 				if(typeof name !== "string") throw ErrorFactory.createEvalException("This function can not take arguments other than a string!");
 
 				name = name.toUpperCase();
-				var target = TSLisp[name];
+				var target = TSLisp.Snippets[name];
 				if(target){
 					var old_env = interp.Environment;
 					interp.Environment = null;		//evaluate the sample code in the global scope
@@ -580,7 +600,7 @@ module TSLisp{
 		"car, cdr, cons, atom, numberp, stringp, eq, eql, list\n" +
 		"prin1, princ, terpri, read, +, -, *, /, %, <\n" +
 		"eval, apply, force, replaca, replacd, throw, mapcar, mapc, length\n" +
-		"ts-self\n" +
+		"ts-get-property, ts-set-property, ts-self\n" +
 		"dump, help, load-sample\n" +
 		"abs, acos, asin, atan, ceil, cos, exp, floor, log, max, min\n" +
 		"pow, random, round, sin, sqrt, tan, radians-to-degrees, degrees-to-radians\n" +

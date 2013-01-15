@@ -7,17 +7,11 @@
 
 (function(){
     Common.HtmlConsole.initialize(false);
-    var html_console = Common.HtmlConsole.getInstance();
+    var html_console = Common.HtmlConsole;
     var interp = TSLisp.interp = new TSLisp.Interpreter(() => {
+        var ret = new TSLisp.ReadPlaceholder(null);
         html_console.input((input) => {
-            new TSLisp.Reader(input).read();
-            /*try{
-                var result = interp.evaluateString(input);
-                Common.HtmlConsole.println(TSLisp.LL.str(result));
-            }
-            catch(e){
-                Common.HtmlConsole.println(e.message, "errorMessage");
-            }*/
+            ret.expr = new TSLisp.Reader(TSLisp.Lines.fromString(input)).read();
         }/*, function(input) : any {
             var opening_parens = input.match(/(\()/g);  //see if opening parenthesis and closing parenthesis are balanced
             var closing_parens = input.match(/(\))/g);  //if so it can be considered that the expression is complete
@@ -26,10 +20,10 @@
             else
                 return 1;
         }*/);
-        return null;
+        return ret;
     });
     interp.loadNatives();
-    interp.evaluateStrings(TSLisp.PRELUDE);
+    interp.evaluateStrings(TSLisp.Snippets.PRELUDE);
     
     var handler = function(input){
         if(input){

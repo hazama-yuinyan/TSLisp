@@ -27,7 +27,7 @@ module TSLisp{
         
         constructor(native_read_func : () => void)
         {
-            this.console = new Common.HtmlConsole();
+            this.console = Common.HtmlConsole;
             this.symbols = new Common.HashTable(1000, 
                 (key) => Utils.getHashCodeFor(key),
                 (lhs, rhs) => lhs == rhs
@@ -45,7 +45,13 @@ module TSLisp{
             this.symbols.add(Symbol.symbolOf("*pi*"), Math.PI);
             this.symbols.add(Symbol.symbolOf("*napier*"), Math.E);
 
-            var read_func_obj = new LispFunction(native_read_func, "(read) : reads an S expression from the standard input", false, false);
+            var read_help_msg = "(read) => an object that will get set the input from the user after the user finishes inputing\n" +
+                "; reads an S expression from the standard input\n" +
+                "NOTE: This function just returns a placeholder object for the supplied expression due to the limitation of JavaScript and\n" +
+                "the Web environment. So the expression '(eval (read))' doesn't work as you expect but it just results in nothing\n" +
+                ", or on some platforms, it might even raises an exception because the read function just returns an object '{expr : \"\"}'\n" +
+                "and the eval function doesn't accept such to-be-filled-with-S-expr object.";
+            var read_func_obj = new LispFunction(native_read_func, read_help_msg, false, false);
             this.symbols.add(Symbol.symbolOf("read"), read_func_obj);
             var list_func = LL.listFrom;
             var list_func_obj = new LispFunction(list_func, "(list a b c ...) => (a b c ...)", false, true);
