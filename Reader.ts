@@ -374,9 +374,9 @@ module TSLisp{
 
         private static tryToParseNumber(token : string) : number
         {
-            var radix_sign = token.match(/^[box]/i), radix = 10;
+            var radix_sign = token.match(/^#([box])([\da-fA-F]+)/i), radix = 10;
             if(radix_sign){
-                switch(radix_sign[0]){
+                switch(radix_sign[1]){
                 case 'b': case 'B':
                     radix = 2;
                     break;
@@ -389,8 +389,9 @@ module TSLisp{
                     radix = 16;
                     break;
                 }
+                var digits = radix_sign[2];
 
-                return parseInt(token, radix);
+                return parseInt(digits, radix);
             }
 
             return parseFloat(token);        

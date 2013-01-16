@@ -2,9 +2,9 @@ var TSLisp;
 (function (TSLisp) {
     (function (Test) {
         var LL = TSLisp.LL;
-        var body_literal = "10\n" + "100.3\n" + "-1.5\n" + '"abcdefg"\n' + '"\141\142\143\144\145\146\147"\n' + '"\x61\x62\x63\x64\x65\x66\x67"\n' + "a\n" + "$x";
+        var body_literal = "10\n" + "100.3\n" + "-1.5\n" + "#b11111111\n" + "#o377\n" + "#xff\n" + '"abcdefg"\n' + '"\141\142\143\144\145\146\147"\n' + '"\x61\x62\x63\x64\x65\x66\x67"\n' + "a\n" + "$x";
         var body_special_forms = "(quote x)\n" + "(progn 1 2 3 4 x y z)\n" + "(cond t 1 0)\n" + "(setq $a 1)\n" + "(lambda (a) (+ a 1))\n" + "(macro (a) (+ a b))\n" + "(macro (a b) (+ a b))\n" + "(macro (a) (macro (x) (+ a x)))\n" + "(delay x)";
-        var body_shorthands = "`x\n" + "`(x y z)\n" + "`(x ,y ,@z)\n" + "~x\n" + "'x\n" + "'(x y z)";
+        var body_shorthands = "`x\n" + "`(x y z)\n" + "`(x ,y z)\n" + "`(x ,@y z)\n" + "`(x ,y ,@z)\n" + "~x\n" + "'x\n" + "'(x y z)";
         var symbol_x = TSLisp.Symbol.symbolOf("x"), symbol_y = TSLisp.Symbol.symbolOf("y"), symbol_z = TSLisp.Symbol.symbolOf("z");
         var symbol_a = TSLisp.Symbol.symbolOf("a"), symbol_b = TSLisp.Symbol.symbolOf("b");
         Test.parser_test = {
@@ -14,6 +14,9 @@ var TSLisp;
                     10, 
                     100.3, 
                     -1.5, 
+                    255, 
+                    255, 
+                    255, 
                     "abcdefg", 
                     "abcdefg", 
                     "abcdefg", 
@@ -32,9 +35,11 @@ var TSLisp;
                     LL.list(LL.S_DELAY, symbol_x)
                 ]), 
                 TSLisp.Test.TestFramework.create("Short Forms", body_shorthands, [
-                    symbol_x, 
-                    LL.list(symbol_x, symbol_y, symbol_z), 
-                    LL.list(symbol_x, LL.list(symbol_y), symbol_z), 
+                    LL.list(LL.S_QUOTE, symbol_x), 
+                    LL.list(LL.S_LIST, LL.list(LL.S_QUOTE, symbol_x), LL.list(LL.S_QUOTE, symbol_y), LL.list(LL.S_QUOTE, symbol_z)), 
+                    LL.list(LL.S_LIST, LL.list(LL.S_QUOTE, symbol_x), symbol_y, LL.list(LL.S_QUOTE, symbol_z)), 
+                    LL.list(LL.S_APPEND, LL.list(LL.S_CONS, LL.list(LL.S_QUOTE, symbol_x), symbol_y), LL.list(LL.S_LIST, LL.list(LL.S_QUOTE, symbol_z))), 
+                    LL.list(LL.S_CONS, LL.list(LL.S_QUOTE, symbol_x), LL.list(LL.S_CONS, symbol_y, symbol_z)), 
                     LL.list(LL.S_DELAY, symbol_x), 
                     LL.list(LL.S_QUOTE, symbol_x), 
                     LL.list(LL.S_QUOTE, LL.list(symbol_x, symbol_y, symbol_z))

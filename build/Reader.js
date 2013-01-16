@@ -406,9 +406,9 @@ var TSLisp;
             return String.fromCharCode(in_number);
         }
         Lexer.tryToParseNumber = function tryToParseNumber(token) {
-            var radix_sign = token.match(/^[box]/i), radix = 10;
+            var radix_sign = token.match(/^#([box])([\da-fA-F]+)/i), radix = 10;
             if(radix_sign) {
-                switch(radix_sign[0]) {
+                switch(radix_sign[1]) {
                     case 'b':
                     case 'B': {
                         radix = 2;
@@ -428,7 +428,8 @@ var TSLisp;
 
                     }
                 }
-                return parseInt(token, radix);
+                var digits = radix_sign[2];
+                return parseInt(digits, radix);
             }
             return parseFloat(token);
         }

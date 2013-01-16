@@ -10,6 +10,9 @@ module TSLisp{
             "10\n" +
             "100.3\n" +
             "-1.5\n" +
+            "#b11111111\n" +                        //255
+            "#o377\n" +                             //255
+            "#xff\n" +                              //255
             '"abcdefg"\n' +
             '"\141\142\143\144\145\146\147"\n' +    //"abcdefg"
             '"\x61\x62\x63\x64\x65\x66\x67"\n' +    //"abcdefg"
@@ -28,6 +31,8 @@ module TSLisp{
         var body_shorthands =
             "`x\n" +
             "`(x y z)\n" +
+            "`(x ,y z)\n" +
+            "`(x ,@y z)\n" +
             "`(x ,y ,@z)\n" +
             "~x\n" +
             "'x\n" +
@@ -47,6 +52,9 @@ module TSLisp{
                         10,
                         100.3,
                         -1.5,
+                        255,
+                        255,
+                        255,
                         "abcdefg",
                         "abcdefg",
                         "abcdefg",
@@ -78,9 +86,18 @@ module TSLisp{
                     "Short Forms",
                     body_shorthands,
                     [
-                        symbol_x,
-                        LL.list(symbol_x, symbol_y, symbol_z),
-                        LL.list(symbol_x, LL.list(symbol_y), symbol_z),
+                        LL.list(LL.S_QUOTE, symbol_x),                              //'x
+                        LL.list(LL.S_LIST, LL.list(LL.S_QUOTE, symbol_x),           //(list 'x 'y 'z)
+                            LL.list(LL.S_QUOTE, symbol_y),
+                            LL.list(LL.S_QUOTE, symbol_z)),
+                        LL.list(LL.S_LIST, LL.list(LL.S_QUOTE, symbol_x),           //(list 'x y 'z)
+                            symbol_y, LL.list(LL.S_QUOTE, symbol_z)),
+                        LL.list(LL.S_APPEND, LL.list(LL.S_CONS,                     //(append (cons 'x y) (list 'z))
+                            LL.list(LL.S_QUOTE, symbol_x), symbol_y),
+                            LL.list(LL.S_LIST, LL.list(
+                                LL.S_QUOTE, symbol_z))),
+                        LL.list(LL.S_CONS, LL.list(LL.S_QUOTE, symbol_x),           //(cons 'x (cons y z))
+                            LL.list(LL.S_CONS, symbol_y, symbol_z)),
                         LL.list(LL.S_DELAY, symbol_x),
                         LL.list(LL.S_QUOTE, symbol_x),
                         LL.list(LL.S_QUOTE, LL.list(symbol_x, symbol_y, symbol_z))

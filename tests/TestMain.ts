@@ -10,14 +10,64 @@
 module TSLisp{
     export module Test{
         module Assert{
+            class AssertError implements Error
+            {
+                public message : string;
+                public name : string;
+                
+                constructor(msg? : string, values? : Object)
+                {
+                    if(msg)
+                        this.message = Utils.substituteTemplate(msg, values);
+                    
+                    this.name = "Assertion Error";
+                }
+            }
+            
             export function equal(val, expect) : bool
             {
                 if(val !== expect){
-                    Common.HtmlConsole.println(Utils.substituteTemplate("Assertion failed; {val} != {expect}", {val : val, expect : expect}),
+                    Common.HtmlConsole.printFormatted("Assertion failed; {val} != {expect}", {val : val, expect : expect},
                         "errorMessage");
                     return false;
                 }
                 return true;
+            }
+            
+            export function structualEqual(val, expect) : bool
+            {
+                if(typeof val === "object"){
+                    if(typeof expect !== "object"){
+                        throw new AssertError("Assertion failed; {val} is an object but {expect} is not!",
+                            {val : val, expect : expect});
+                    }
+                    
+                    if($.isArray(val)){
+                        if(!$.isArray(expect)){
+                            throw new AssertError("Assertion failed; {val} is an array but {expect} is not!",
+                                {val : val, expect : expect});
+                        }
+                        if(val.length != expect.length){
+                            throw new AssertError("Assertion failed; The number of elements in {val} doesn't match that of {expect}",
+                                {val : val, expect : expect});
+                        }
+                        
+                        for(var i = 0; i < val.length; ++i)
+                            return structualEqual(val[i], expect[i]);
+                    }else{
+                        for(var key in val){
+                            for(var expect_key in expect){
+                                if(key === expect_key && val.hasOwnProperty(key) && expect.hasOwnProperty(expect_key))
+                                    return structualEqual(val[key], expect[expect_key]);
+                                else{
+                                    throw new AssertError("Assertion failed; {key} != {expect_key}", {key : key,
+                                        expect_key : expect_key});
+                                }
+                            }
+                        }
+                    }
+                }else
+                    return equal(val, expect);
             }
         }
         
@@ -34,7 +84,8 @@ module TSLisp{
                 for(var j = 0; j < tests.length; ++j){
                     ret = interp.evaluateString(tests[j]);
                     if(Assert.equal(ret, test_obj[i].expected[j]))
-                        console.printFormatted("Test pass: {name},{number}", {name : test_name, number : j + 1}, "testPassed");
+                        console.printFormatted("Test pass: {suite_name},{name}:{number}",
+                            {suite_name : test_name, name : test_obj[i].name, number : j + 1}, "testPassed");
                 }
             }
         }
@@ -45,8 +96,14 @@ module TSLisp{
                 var parser = new TSLisp.Reader(TSLisp.Lines.fromString(test_obj[i].body));
                 var ret;
                 for(var j = 0; (ret = parser.read()) != TSLisp.LL.S_EOF; ++j){
-                    if(Assert.equal(ret, test_obj[i].expected[j]))
-                        console.printFormatted("Test pass: {name},{number}", {name : test_name, number : j + 1}, "testPassed");
+                    try{
+                        if(Assert.structualEqual(ret, test_obj[i].expected[j]))
+                            console.printFormatted("Test pass: {suite_name},{name}:{number}",
+                                {suite_name : test_name, name : test_obj[i].name, number : j + 1}, "testPassed");
+                    }
+                    catch(e){
+                        console.println(e.message, "errorMessage");
+                    }
                 }
             }
         }
