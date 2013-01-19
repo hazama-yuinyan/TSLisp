@@ -567,8 +567,9 @@ module TSLisp{
 		"* The divide function '/' can take more than one argument.\n" +
 		"* (delay x) constructs a Promise object as in Scheme, and it can be shortened to '~x'.\n" +
 		"  The built-in functions and conditional expressions implicitly resolve them.\n" +
-		"* The (read) function returns the EOF symbol when it encounters EOF.\n" +
-		"* Evaluating (lambda ...) yields a function whose parameters are \"compiled\".\n" +
+		"* Evaluating (lambda ...) yields a function whose parameters are \"compiled\". Here \"compiled\" means that the symbols, " +
+        "which are about to be compiled,\n  are transformed into offsets and therefore they can be referenced by a single indexing " +
+        "rather than an expensive hash table lookup or something.\n" +
 		"* The form (macro ...) can only be evaluated in the global scope and it yields a Macro object.\n" +
 		"* In the form (macro ...), symbols beginning with '$' are cosidered to be dummy symbols.\n" +
 		"  Dummy symbols are self-evaluating and the \"eq\" function returns t only when it is called in the macro.\n" +

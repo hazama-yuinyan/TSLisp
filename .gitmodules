@@ -1,0 +1,3 @@
+[submodule "lib/jqconsole"]
+	path = lib/jqconsole
+	url = git://github.com/replit/jq-console.git

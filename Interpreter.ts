@@ -51,7 +51,7 @@ module TSLisp{
                 "the Web environment. So the expression '(eval (read))' doesn't work as you expect but it just results in nothing\n" +
                 ", or on some platforms, it might even raises an exception because the read function just returns an object '{expr : \"\"}'\n" +
                 "and the eval function doesn't accept such a to-be-filled-with-S-expr object.\n" +
-                "And as such, please make sure to extract the 'expr' property using the 'ts-get-property' function before further computation\n"
+                "And as such, please make sure to extract the 'expr' property using the 'ts-get-property' function before further computation\n" +
                 "or you'll end up seeing a native exception being thrown.";
             var read_func_obj = new LispFunction(native_read_func, read_help_msg, false, false);
             this.symbols.add(Symbol.symbolOf("read"), read_func_obj);
