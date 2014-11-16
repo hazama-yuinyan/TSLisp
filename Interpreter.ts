@@ -48,7 +48,7 @@ module TSLisp{
             var read_help_msg = "(read) => an object that will get set the input from the user after the user finishes inputing\n" +
                 "; reads an S expression from the standard input\n" +
                 "NOTE: This function just returns a placeholder object for the supplied expression due to the limitation of JavaScript and\n" +
-                "the Web environment. So the expression '(eval (read))' doesn't work as you expect but it just results in nothing\n" +
+                "the Web environment. So the expression '(eval (read))' doesn't work as you'd expect but it just results in nothing\n" +
                 ", or on some platforms, it might even raises an exception because the read function just returns an object '{expr : \"\"}'\n" +
                 "and the eval function doesn't accept such a to-be-filled-with-S-expr object.\n" +
                 "And as such, please make sure to extract the 'expr' property using the 'ts-get-property' function before further computation\n" +
@@ -505,7 +505,7 @@ module TSLisp{
 
                 if(canLoseEnviron){
                     old_env = this.environ;     //throw away the old environment
-                    x[0] = body.car;            //and evaluate it after returining
+                    x[0] = body.car;            //and evaluate it after returning
                     return false;
                 }else{
                     x[0] = this.evaluate(body.car, true);   //evaluate it as a tail call

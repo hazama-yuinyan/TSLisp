@@ -409,8 +409,9 @@ module Common{
 	{
 		return new EnumeratorStore(
 			new Common.Enumerator(() => {
-	    	    		if(er.moveNext()) return er.Current;
-	    	    	})
-	    	);
+	    	    if(er.moveNext())
+	    	    	return er.Current;
+	    	})
+	    );
 	}
 }

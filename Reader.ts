@@ -28,7 +28,8 @@ module TSLisp{
         private get Current() {
             if(this.has_current){
                 var tc = this.tk.Current;
-                if(tc instanceof SyntaxError) throw tc;
+                if(tc instanceof SyntaxError)
+                    throw tc;
 
                 return tc;
             }else
@@ -49,7 +50,9 @@ module TSLisp{
             this.lexer.reset();
             if(this.last_error){    //If we saw an error at last time, then skip to the next line
                 var n = this.lexer.LineNumber;
-                while(this.has_current && this.lexer.LineNumber == n) this.moveNext();
+                while(this.has_current && this.lexer.LineNumber == n)
+                    this.moveNext();
+                
                 this.last_error = false;
             }else{
                 if(this.has_current)
@@ -201,8 +204,9 @@ module TSLisp{
                             }
                         });
                         ch.moveNext();
-                    }else
+                    }else{
                         this.is_eof = true;
+                    }
                 }else{
                     if(this.state != "don't_move")
                         ch.moveNext();
@@ -212,10 +216,12 @@ module TSLisp{
 
                 while(true){
                     while(!this.is_eof && Utils.isWhitespace(ch.Current)) ch.moveNext();  //skip whitespace characters
-                    if(this.is_eof) return undefined;
+                    if(this.is_eof)
+                        return undefined;
 
                     var cc = ch.Current;
-                    if(!cc) return undefined;
+                    if(!cc)
+                        return undefined;
 
                     switch(cc){
                     case ';':
@@ -251,10 +257,12 @@ module TSLisp{
                         var token = "";
                         while(true){
                             token += cc;
-                            if(!ch.moveNext()) break;
+                            if(!ch.moveNext())
+                                break;
 
                             cc = ch.Current;
-                            if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc)) break;
+                            if(cc == '(' || cc == ')' || cc == '\'' || cc == '~' || Utils.isWhitespace(cc))
+                                break;
                         }
 
                         if(token == "nil"){
@@ -441,10 +449,11 @@ module TSLisp{
                 }
 
                 return new Cell(LL.S_APPEND, t);
-            }else if(x instanceof QQ.Unquote)
+            }else if(x instanceof QQ.Unquote){
                 return (<Unquote> x).x;
-            else
+            }else{
                 return QQ.quote(x);
+            }
         }
 
         export function quote(x)
@@ -465,9 +474,9 @@ module TSLisp{
                 if(t instanceof Cell){
                     var tc : Cell = <Cell>t;
 
-                    if(tc.car === null && tc.cdr === null)
+                    if(tc.car === null && tc.cdr === null){
                         return LL.list(h);
-                    else if(h instanceof Cell){
+                    }else if(h instanceof Cell){
                         var hc : Cell = <Cell>h;
 
                         if(hc.car == LL.S_LIST){
@@ -489,10 +498,11 @@ module TSLisp{
                 }
 
                 return new Cell(h, t);
-            }else if(x instanceof Unquote)
+            }else if(x instanceof Unquote){
                 return LL.list(<Unquote>(x).x);
-            else
+            }else{
                 return LL.list(QQ.quote(x));
+            }
         }
 
         export function concat(x : Cell, y : any)

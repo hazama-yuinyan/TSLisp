@@ -13,8 +13,7 @@ Since the Cell class implements IEnumerable interface, which is similar to the o
 First clone the git repository and execute `git submodule init` and `git submodule update`. Then you must be ready to get it working.
 Just open the "console.html" file on your favorite web browser with cross-site scripting on, which can be enabled on Chrome using the 
 `allow-access-from-files` switch, and you'll see the TSLisp console welcoming you.
-Or if you prefer to compile the code by yourself, just type `./compile.sh` command into the terminal, if you have bash installed. Otherwise,
-you have to the commands to compile one by one.
+Or if you prefer to compile the code by yourself, just type `./compile.sh` command into the terminal, if you have bash installed. Otherwise, you have to execute the commands one by one to compile it.
 
 ##Characteristics
 * It's basically a subset of Emacs Lisp but it uses static scope instead of dynamic.
