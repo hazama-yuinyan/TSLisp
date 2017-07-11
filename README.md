@@ -1,21 +1,23 @@
-#TypeScript Lisp 1.1                                    Jan. 19 2013 
+# TypeScript Lisp 1.1                                    Jan. 19 2013 
 -------------------
-A small Lisp implementation in TypeScript
-TS Lisp uses the following objects as Lisp values:
-  numbers and strings => JavaScript's primitive values(and objects)
-  nil                 => null
-  symbols             => Symbol class objects
-  Cons cells          => Cell class objects
-Since the Cell class implements IEnumerable interface, which is similar to the one in C#
-(see Common.ts for more info), you can enumerate it fairly easily.
+A small Lisp implementation in TypeScript.
 
-##How to use it
+TS Lisp uses the following objects as Lisp values:  
+  numbers and strings => JavaScript's primitive values(and objects)  
+  nil                 => null  
+  symbols             => Symbol class objects  
+  Cons cells          => Cell class objects  
+Since the Cell class implements IEnumerable interface, which is similar to the one in C#  
+(see Common.ts for more info), you can enumerate it fairly easily.  
+
+## How to use it
 First clone the git repository and execute `git submodule init` and `git submodule update`. Then you must be ready to get it working.
 Just open the "console.html" file on your favorite web browser with cross-site scripting on, which can be enabled on Chrome using the 
 `allow-access-from-files` switch, and you'll see the TSLisp console welcoming you.
+
 Or if you prefer to compile the code by yourself, just type `./compile.sh` command into the terminal, if you have bash installed. Otherwise, you have to execute the commands one by one to compile it.
 
-##Characteristics
+## Characteristics
 * It's basically a subset of Emacs Lisp but it uses static scope instead of dynamic.
 * It'll always do tail call optimization.
 * The symbol '*version*' refers to a cons cell whose car is the version number and cdr is the platform name
@@ -34,22 +36,22 @@ Or if you prefer to compile the code by yourself, just type `./compile.sh` comma
   e.g. "'`((,a b) ,c ,@d)" => "(cons (list a 'b) (cons c d))"
 * Native functions can have optional parameters like the built-in function "help" does only if they take, at most, two parameters.
 
-##Special forms
-`quote`, `progn`, `cond`, `setq`, `lambda`, `macro`, `delay`
-##Built-in functions
-`car`, `cdr`, `cons`, `atom`, `numberp`, `stringp`, `eq`, `eql`, `list`
-`prin1`, `princ`, `terpri`, `read`, `+`, `-`, `*`, `/`, `%`, `<`
-`eval`, `apply`, `force`, `replaca`, `replacd`, `throw`, `mapcar`, `mapc`, `length`
-`ts-self`, `ts-get-property`, `ts-set-property`
-`dump`, `help`, `load-sample`
-`abs`, `acos`, `asin`, `atan`, `ceil`, `cos`, `exp`, `floor`, `log`, `max`, `min`
-`pow`, `random`, `round`, `sin`, `sqrt`, `tan`, `radians-to-degrees`, `degrees-to-radians`
-##Predefined variables
-`*error*`, `*version*`, `*eof*`, `t`
+## Special forms
+`quote`, `progn`, `cond`, `setq`, `lambda`, `macro`, `delay`  
+## Built-in functions
+`car`, `cdr`, `cons`, `atom`, `numberp`, `stringp`, `eq`, `eql`, `list`  
+`prin1`, `princ`, `terpri`, `read`, `+`, `-`, `*`, `/`, `%`, `<`  
+`eval`, `apply`, `force`, `replaca`, `replacd`, `throw`, `mapcar`, `mapc`, `length`  
+`ts-self`, `ts-get-property`, `ts-set-property`  
+`dump`, `help`, `load-sample`  
+`abs`, `acos`, `asin`, `atan`, `ceil`, `cos`, `exp`, `floor`, `log`, `max`, `min`  
+`pow`, `random`, `round`, `sin`, `sqrt`, `tan`, `radians-to-degrees`, `degrees-to-radians`  
+## Predefined variables
+`*error*`, `*version*`, `*eof*`, `t`  
 
 And the initialization script contains some more general-purpose functions and macros including `defun`, `while`, `if`, `map`, `filter` etc.
 
-##License
+## License
 The MIT License (MIT)
 Copyright (c) 2007, 2008 Oki Software Co., Ltd.
 Copyright (c) 2013 HAZAMA
